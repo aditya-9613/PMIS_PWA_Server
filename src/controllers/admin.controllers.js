@@ -191,10 +191,53 @@ const logoutUser = asyncHandler(async (req, res) => {
         )
 })
 
+const searchQuery = asyncHandler(async (req, res) => {
+    const { query } = req.query
+
+    if (!query || query === '') {
+        throw new ApiError(400, 'Query is required')
+    }
+
+    const searchResults = await Admin.find({
+        $or: [
+            { username: { $regex: query, $options: 'i' } },
+            { name: { $regex: query, $options: 'i' } }
+        ]
+    }).select('-password')
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, { results: searchResults }, 'Search Results')
+        )
+})
+
+const getUserById = asyncHandler(async (req, res) => {
+    const { username } = req.query
+
+    if (!username || username === '') {
+        throw new ApiError(400, 'User ID is required')
+    }
+
+    const user = await Admin.findOne({ username: username }).select('-password')
+
+    if (!user) {
+        throw new ApiError(404, 'User not found')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, { user }, 'User Details')
+        )
+})
+
 export {
     refreshAccessToken,
     createUser,
     LoginUser,
     getUserDetails,
-    logoutUser
+    logoutUser,
+    searchQuery,
+    getUserById,
 }

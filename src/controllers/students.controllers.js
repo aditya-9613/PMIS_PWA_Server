@@ -240,9 +240,496 @@ const updateStudentDetails = asyncHandler(async (req, res) => {
         )
 })
 
+const classImageList = asyncHandler(async (req, res) => {
+    const { grade, section } = req.query
+
+    if (grade === '' || section === '') {
+        throw new ApiError(400, 'Required Fields')
+    }
+
+    const studentList = await Student.find(
+        { grade: grade, section: section, status: { $in: ['Active', 'Inactive'] } },
+        { _id: 0, student_image: 1, name: 1, student_id: 1, roll_number: 1 }
+    ).lean()
+
+    if (!studentList.length) {
+        throw new ApiError(404, 'No Students Found')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, { results: studentList }, 'Student List')
+        )
+})
+
+const updateImageOnCloud = asyncHandler(async (req, res) => {
+
+})
+
+const updateClassList = asyncHandler(async (req, res) => {
+
+    const { jsonData } = req.body
+
+    if (!jsonData || jsonData.length === 0) {
+        throw new ApiError(400, 'No Updates Are Done')
+    }
+
+    jsonData.forEach(async (student) => {
+        const studentData = await Student.findOne({ student_id: student.student_id })
+
+        const parentData = await Parent.findOne({ parent_id: student.parent_id })
+
+        if (!studentData || !parentData) {
+            throw new ApiError(404, 'Student or Parent Not Found')
+        }
+
+        studentData.name = student.name
+        studentData.aapar_id_no = student.aapar_id_no || ''
+        studentData.gender = student.gender
+        studentData.category = student.category
+        studentData.student_email = student.student_email || null
+        studentData.student_contact = student.student_contact || null
+        studentData.dob = student.dob
+        studentData.grade = student.grade
+        studentData.section = student.section
+        studentData.status = student.status
+        studentData.address = student.address
+        studentData.addmissionDate = student.admissionDate
+        studentData.pincode = student.pincode
+        studentData.city = student.city
+        studentData.document_type = student.document_type || null
+        studentData.document_number = student.document_number || null
+        studentData.modeOfTransport = student.modeOfTransport
+        studentData.scholar_number = student.scholar_number || null
+        studentData.vehicle_number = student.vehicle_number
+
+        awaitstudentData.save()
+
+        parentData.father_name = student.father_name
+        parentData.mother_name = student.mother_name
+        parentData.guardian_name = student.guardian_name || null
+        parentData.guardian_phone = student.guradian_phone || null
+        parentData.parent_email = student.parent_email || null
+        parentData.father_qualification = student.father_qualification || null
+        parentData.mother_qualification = student.mother_qualification || null
+        parentData.mother_contact = student.mother_contact
+        parentData.father_contact = student.father_contact
+        parentData.mother_occupation = student.mother_occupation
+        parentData.father_occupation = student.father_occupation
+
+        await parentData.save()
+    })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, null, 'Class List Updated')
+        )
+})
+
+const assignRollNo = asyncHandler(async (req, res) => {
+
+    const { studentArray } = req.body
+
+    if (!studentArray || studentArray.length === 0) {
+        throw new ApiError(400, 'Student Array Cannot Be Empty')
+    }
+
+    var flag = 0;
+
+    const rollNo = [];
+
+    for (let i = 0; i < studentArray.length; i++) {
+        const element = studentArray[i];
+        if (element.roll_number === 0) {
+            throw new ApiError(400, `Please Enter Roll Number at ${element.name}`)
+        }
+        if (rollNo.indexOf(element.roll_number) > -1) {
+            throw new ApiError(422, `Two Roll Numbers Can't be Same: ${element.roll_number}`)
+        }
+        rollNo.push(element.roll_number);
+    }
+
+    for (let i = 0; i < studentArray.length; i++) {
+        const item = studentArray[i];
+        const updateRollNumber = await Student.updateOne({ student_id: item.student_id }, { roll_number: item.roll_number })
+        if (!updateRollNumber.acknowledged) {
+            throw new ApiError(500, `Server Error ${item.name}`)
+        }
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, null, 'Roll Numbers Assigned')
+        )
+})
+
+const getClassStrength = asyncHandler(async (req, res) => {
+    var currentSession = await getCurrentSchoolSession()
+
+    const { grade, section } = req.query
+
+    if (!grade || !section) {
+        throw new ApiError(400, 'Required Fields')
+    }
+
+    const studentLists = await Student.aggregate([
+        {
+            $match: {
+                grade: grade,
+                section: section,
+                session: currentSession
+            }
+        },
+        {
+            $lookup: {
+                from: "parents",
+                localField: "parent_id",
+                foreignField: "parent_id",
+                as: "parent_info"
+            }
+        },
+        {
+            $unwind: "$parent_info"
+        },
+        {
+            $project: {
+                name: 1,
+                student_id: 1,
+                student_image: 1,
+                grade: 1,
+                gender: 1,
+                dob: 1,
+                section: 1,
+                address: 1,
+                roll_number: 1,
+                status: 1,
+                document_number: 1,
+                addmissionDate: 1,
+                session: 1,
+                father_name: "$parent_info.father_name",
+                mother_name: "$parent_info.mother_name",
+                father_contact: "$parent_info.father_contact"
+            }
+        }
+    ])
+
+    if (!studentLists.length) {
+        throw new ApiError(404, 'Class not Found')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, studentLists, 'Class List')
+        )
+})
+
+const getNotPromotedList = asyncHandler(async (req, res) => {
+    const { grade, section } = req.query
+
+    if (grade === "" || section === "") {
+        throw new ApiError(400, 'Required Fields')
+    }
+
+    const findNonPromotedStudentList = await Student.aggregate([
+        {
+            $match: {
+                grade: grade,
+                section: section,
+                status: 'Not-Promoted'
+            },
+        },
+        {
+            $lookup: {
+                from: "parents",
+                localField: "parent_id",
+                foreignField: "parent_id",
+                as: "parent_info"
+            }
+        },
+        {
+            $unwind: "$parent_info"
+        },
+        {
+            $project: {
+                name: 1,
+                student_id: 1,
+                grade: 1,
+                gender: 1,
+                section: 1,
+                status: 1,
+                father_name: "$parent_info.father_name",
+                mother_name: "$parent_info.mother_name",
+                father_contact: "$parent_info.father_contact"
+            }
+        }
+    ])
+
+    if (!findNonPromotedStudentList.length) {
+        throw new ApiError(404, 'Class not Found or No Students Left for promotion')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, findNonPromotedStudentList, 'Non Promoted List')
+        )
+})
+
+const promoteStudents = asyncHandler(async (req, res) => {
+
+    var currentSession = await getCurrentSchoolSession()
+    const { promotionList } = req.body
+
+    if (!promotionList || promotionList.length === 0) {
+        throw new ApiError(400, 'Promotion List Cannot Be Empty')
+    }
+
+    promotionList.forEach(async (item) => {
+        const promoteStudent = await Student.updateOne({ student_id: item.student_id, status: 'Not-Promoted' }, { status: 'Inactive', grade: item.promote_to })
+
+        if (!promoteStudent.acknowledged) {
+            throw new ApiError(500, `Server Error at ${item.name}`)
+        }
+    })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, null, 'Students Promoted')
+        )
+})
+
+const swiftSection = asyncHandler(async (req, res) => {
+    const { selectedStudent } = req.body
+
+    if (!selectedStudent || selectedStudent.length === 0) {
+        throw new ApiError(400, 'No Student Selected')
+    }
+
+    selectedStudent.forEach(async (item) => {
+        const updateSection = await Student.updateOne({ student_id: item.student_id }, { section: item.section })
+
+        if (!updateSection.acknowledged) {
+            throw new ApiError(500, `Server Error at ${item.name}`)
+        }
+    })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, null, 'Section Updated Successfully')
+        )
+})
+
+const admissionReport = asyncHandler(async (req, res) => {
+    const { year } = req.query
+
+    if (!year) {
+        throw new ApiError(400, 'Year is Required')
+    }
+
+    const startDate = new Date(`${year}-01-01T00:00:00.000Z`)
+    const endDate = new Date(`${year}-12-31T23:59:59.999Z`)
+
+    const admittedStudents = await Student.find({
+        addmissionDate: {
+            $gte: startDate,
+            $lte: endDate
+        }
+    }).lean()
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, { admittedStudents }, 'Admission Report')
+        )
+})
+
+const previousStudentList = asyncHandler(async (req, res) => {
+    const { grade, section, session } = req.query
+    var currentSession = await getCurrentSchoolSession()
+
+    if (
+        [grade, section, session].some((item) => item.trim() === "" || !item)
+    ) {
+        throw new ApiError(400, 'Required Fields')
+    }
+
+    if (session === currentSession) {
+        throw new ApiError(429, 'This Session is Current Session')
+    }
+
+    const getAttendanceRecords = await Attendance.aggregate([
+        { $match: { grade, section, session } },
+        {
+            $group: {
+                _id: "$student_id",
+                roll_number: { $first: "$roll_number" },
+            },
+        },
+        {
+            $project: {
+                _id: 0,
+                student_id: "$_id",
+                roll_number: 1,
+            },
+        },
+    ]);
+
+    const paymentRecords = await Payment.distinct("student_id", {
+        grade,
+        section,
+        session,
+    });
+
+    // Build a map from attendanceRecords for quick lookup
+    const attendanceMap = new Map(
+        getAttendanceRecords.map((record) => [record.student_id, record.roll_number])
+    );
+
+    // Union of both student_ids
+    const allStudentIds = new Set([
+        ...getAttendanceRecords.map((r) => r.student_id),
+        ...paymentRecords,
+    ]);
+
+    const studentIds = [...allStudentIds];
+    const parentIds = studentIds.map((id) => "P" + id.slice(1));
+
+    const [studentRecords, parentRecords] = await Promise.all([
+        Student.find(
+            { student_id: { $in: studentIds } },
+            { student_id: 1, student_contact: 1, address: 1, pincode: 1, city: 1, name: 1, _id: 0 }
+        ).lean(),
+        Parent.find(
+            { parent_id: { $in: parentIds } },
+            { parent_id: 1, mother_contact: 1, father_contact: 1, _id: 0 }
+        ).lean(),
+    ]);
+
+    const studentMap = new Map(studentRecords.map((s) => [s.student_id, s]));
+    const parentMap = new Map(parentRecords.map((p) => [p.parent_id, p]));
+
+    const finalRecords = studentIds.map((student_id) => {
+        const parent_id = "P" + student_id.slice(1);
+        const { student_id: _s, ...studentData } = studentMap.get(student_id) ?? {};
+        const { parent_id: _p, ...parentData } = parentMap.get(parent_id) ?? {};
+
+        return {
+            grade,
+            section,
+            session,
+            student_id,
+            roll_number: attendanceMap.get(student_id) ?? "N/A",
+            parent_id,
+            ...studentData,
+            ...parentData,
+        };
+    }).sort((a, b) => {
+        if (a.roll_number === "N/A") return 1;
+        if (b.roll_number === "N/A") return -1;
+        return Number(a.roll_number) - Number(b.roll_number);
+    });
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, finalRecords, 'Previous Session Data')
+        )
+})
+
+const studentReport = asyncHandler(async (req, res) => {
+    const { student_id } = req.query
+
+    if (!student_id) {
+        throw new ApiError(400, 'Student Id is Required')
+    }
+
+    const AllDetails = await Student.aggregate([
+        {
+            $match: {
+                student_id: student_id
+            }
+        },
+        {
+            $lookup: {
+                from: 'parents',
+                localField: 'parent_id',
+                foreignField: 'parent_id',
+                as: 'parent_info'
+            }
+        },
+        {
+            $lookup: {
+                from: 'payments',
+                localField: 'student_id',
+                foreignField: 'student_id',
+                as: 'payment_info'
+            }
+        },
+        {
+            $lookup: {
+                from: 'examresults',
+                localField: 'student_id',
+                foreignField: 'student_id',
+                as: 'result_info'
+            }
+        },
+        {
+            $lookup: {
+                from: 'attendances',
+                localField: 'student_id',
+                foreignField: 'student_id',
+                as: 'attendance_info'
+            }
+        },
+        {
+            $lookup: {
+                from: 'discounts',
+                localField: 'student_id',
+                foreignField: 'student_id',
+                as: 'discount_info'
+            }
+        },
+        {
+            $lookup: {
+                from: 'specialdiscounts',
+                localField: 'student_id',
+                foreignField: 'student_id',
+                as: 'special_discount_info'
+            }
+        }
+    ])
+
+    if (!AllDetails.length) {
+        throw new ApiError(404, 'Student Not Found')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, AllDetails[0], 'Student Report')
+        )
+})
+
 export {
     newAddmission,
     findStudentsQuery,
     findStudentWithId,
     updateStudentDetails,
+    classImageList,
+    updateImageOnCloud,
+    updateClassList,
+    assignRollNo,
+    getClassStrength,
+    getNotPromotedList,
+    promoteStudents,
+    swiftSection,
+    admissionReport,
+    previousStudentList,
+    studentReport
 }
