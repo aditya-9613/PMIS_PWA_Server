@@ -202,7 +202,8 @@ const searchQuery = asyncHandler(async (req, res) => {
         $or: [
             { username: { $regex: query, $options: 'i' } },
             { name: { $regex: query, $options: 'i' } }
-        ]
+        ],
+        userType: { $in: ['Employee', 'Teacher'] }
     }).select('-password')
 
     return res

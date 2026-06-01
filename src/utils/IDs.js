@@ -7,3 +7,10 @@ export const StudentId = () => {
     const studentId = `SPM${randomDigits()}${letters}${randomDigits()}IS`;
     return studentId;
 }
+
+export const createCourseID = (course_id, session) => {
+    const pureCourseID = course_id.split('_')[0]
+    const sessionCode = session.split("-").map(year => year.slice(-2)).join("-");
+    const newCourseId = `${pureCourseID}_${sessionCode}`
+    return newCourseId
+}

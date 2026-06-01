@@ -1,30 +1,37 @@
-import { ApiError } from "../utils/apiError.js"
-import { ApiResponse } from "../utils/apiResponse.js"
+import { ApiError } from "../utils/ApiError.js"
+import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { Course } from "../models/course.models.js"
 import { getCurrentSchoolSession } from '../utils/CurrentSession.js'
+import { createCourseID } from "../utils/IDs.js"
+import {Student} from "../models/students.models.js"
 
 const createCourse = asyncHandler(async (req, res) => {
-    const { course_id, subjects, grade, session } = req.body
+    var session = await getCurrentSchoolSession()
+
+    const { course_id, subjects, grade } = req.body;
 
     if (
-        [course_id, grade].some((items) =>
-            items.trim() === "") || (subjects.length === 0)
+        !course_id?.trim() ||
+        !grade?.trim() ||
+        !Array.isArray(subjects) ||
+        subjects.length === 0
     ) {
-        throw new ApiError(400, 'Required Fields')
+        throw new ApiError(400, 'Required Fields');
     }
 
-    const previousCourse = await Course.findOne({ course_id: course_id })
+    const previousCourse = await Course.findOne({ course_id: course_id, session: session })
 
     if (previousCourse) {
         throw new ApiError(409, 'Course Id Exisits')
     }
 
     var createCourse
+    var course_id_new = createCourseID(course_id, session)
 
     if (grade === '9' || grade === '11') {
         createCourse = await Course.create({
-            course_id: course_id,
+            course_id: course_id_new,
             subjects: subjects,
             grade: grade,
             session: session
@@ -33,7 +40,7 @@ const createCourse = asyncHandler(async (req, res) => {
         const newCourseId = grade === '9' ? 'Secondary Tenth' : course_id.replace("Eleventh", "Twelve")
 
         const createCourseFront = await Course.create({
-            course_id: newCourseId,
+            course_id: createCourseID(newCourseId, session),
             subjects: subjects,
             grade: (Number(grade) + 1),
             session: session
@@ -41,7 +48,7 @@ const createCourse = asyncHandler(async (req, res) => {
 
     } else {
         createCourse = await Course.create({
-            course_id: course_id,
+            course_id: course_id_new,
             subjects: subjects,
             grade: grade,
             session: session
@@ -60,7 +67,11 @@ const createCourse = asyncHandler(async (req, res) => {
 })
 
 const viewCourse = asyncHandler(async (req, res) => {
-    var session = await getCurrentSchoolSession()
+    var { session } = req.query
+
+    if (session === '' || !session) {
+        session = await getCurrentSchoolSession()
+    }
 
     const allCourses = await Course.find({ session: session })
 
@@ -86,34 +97,56 @@ const viewCourse = asyncHandler(async (req, res) => {
 })
 
 const getCourse = asyncHandler(async (req, res) => {
+    var session = await getCurrentSchoolSession()
     const { grade, section } = req.query
 
     if (grade === "" || section === "") {
         throw new ApiError(400, 'Required Fields')
     }
+    const data = await Course.aggregate([
+        {
+            $match: { grade, session }
+        },
+        {
+            $lookup: {
+                from: "students",
+                localField: "grade",
+                foreignField: "grade",
+                pipeline: [
+                    {
+                        $match: { section, session }
+                    },
+                    {
+                        $project: { _id: 0, student_id: 1, name: 1, roll_number: 1, grade: 1, section: 1, status: 1 }
+                    }
+                ],
+                as: "studentData"
+            }
+        },
+        {
+            $project: { _id: 0, course_id: 1, studentData: 1 }
+        }
+    ]);
 
-    const studentData = await Student.find({ grade: grade, section: section },
-        { _id: 0, student_id: 1, name: 1, roll_number: 1, grade: 1, section: 1, status: 1 }
-    ).lean()
+    if (!data.length) {
+        throw new ApiError(404, 'No Records Found');
+    }
+
+    const studentData = data[0].studentData;
 
     if (!studentData.length) {
-        throw new ApiError(404, 'No Records Found')
+        throw new ApiError(404, 'No Records Found');
     }
 
-    const courses = await Course.find({ grade: grade },
-        { _id: 0, course_id: 1 }).lean()
+    const courses = data.map(({ course_id }) => ({ course_id }));
 
-    if (!courses.length) {
-        throw new ApiError(404, 'No Courses Found')
-    }
-
-    const Data = { studentData, courses }
+    const Data = { studentData, courses };
 
     return res
         .status(200)
         .json(
             new ApiResponse(200, Data, "Course Records")
-        )
+        );
 })
 
 const allotCourse = asyncHandler(async (req, res) => {
@@ -146,7 +179,7 @@ const allotCourse = asyncHandler(async (req, res) => {
 })
 
 const getCourseById = asyncHandler(async (req, res) => {
-    const { course_id } = req.body
+    const { course_id } = req.query
 
     if (!course_id) {
         throw new ApiError(400, 'Required Input')
@@ -172,7 +205,7 @@ const getCourseById = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(
-            new ApiResponse(200, { courses: Data }, "Course List")
+            new ApiResponse(200, { courses: Data[0] }, "Course List")
         )
 })
 
@@ -204,36 +237,6 @@ const updateCourseById = asyncHandler(async (req, res) => {
         .status(200)
         .json(
             new ApiResponse(200, {}, "Course Updated")
-        )
-})
-
-const removeCourseById = asyncHandler(async (req, res) => {
-    const { course_id } = req.body
-
-    if (course_id === "") {
-        throw new ApiError(400, 'Required Inputs')
-    }
-
-    var removeCourse
-
-    if (course_id.includes('Nineth') || course_id.includes('Eleventh')) {
-        removeCourse = await Course.deleteOne({ course_id: course_id })
-
-        const newCourseId = course_id.includes('Nineth') ? 'Secondary Tenth' : course_id.replace("Eleventh", "Twelve")
-
-        const removeCourseFront = await Course.deleteOne({ course_id: newCourseId })
-    } else {
-        removeCourse = await Course.deleteOne({ course_id: course_id })
-    }
-
-    if (!removeCourse.acknowledged) {
-        throw new ApiError(500, 'Server Error')
-    }
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(200, {}, "Course Deleted")
         )
 })
 
@@ -302,6 +305,5 @@ export {
     allotCourse,
     getCourseById,
     updateCourseById,
-    removeCourseById,
     getStudentWithSubjects
 }

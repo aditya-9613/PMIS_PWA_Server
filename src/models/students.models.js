@@ -7,8 +7,8 @@ const StudentSchema = new Schema({
         required: true,
         unique: true
     },
-    aapar_id_no:{
-        type:String,
+    aapar_id_no: {
+        type: String,
     },
     student_image: {
         type: String
@@ -76,7 +76,8 @@ const StudentSchema = new Schema({
         type: String
     },
     scholar_number: {
-        type: String
+        type: String,
+        unique: true
     },
     parent_id: {
         type: String,
@@ -87,7 +88,7 @@ const StudentSchema = new Schema({
     },
     removalDate: {
         type: Date,
-        default:null
+        default: null
     }
 }, {
     timestamps: true

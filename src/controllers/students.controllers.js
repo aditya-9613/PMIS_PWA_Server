@@ -399,19 +399,25 @@ const getClassStrength = asyncHandler(async (req, res) => {
                 name: 1,
                 student_id: 1,
                 student_image: 1,
+                aapar_id_no: 1,
                 grade: 1,
                 gender: 1,
+                category: 1,
                 dob: 1,
                 section: 1,
                 address: 1,
                 roll_number: 1,
                 status: 1,
                 document_number: 1,
+                document_type: 1,
+                scholar_number: 1,
                 addmissionDate: 1,
                 session: 1,
                 father_name: "$parent_info.father_name",
                 mother_name: "$parent_info.mother_name",
-                father_contact: "$parent_info.father_contact"
+                father_contact: "$parent_info.father_contact",
+                parent_email: "$parent_info.parent_email",
+                mother_contact: "$parent_info.mother_contact"
             }
         }
     ])
