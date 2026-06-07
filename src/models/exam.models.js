@@ -10,6 +10,10 @@ const ExamSchema = new Schema({
     end_date: {
         type: Date
     },
+    user: {
+        type: String,
+        required: true
+    },
     session: {
         type: String
     }

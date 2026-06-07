@@ -174,7 +174,7 @@ const findStudentWithId = asyncHandler(async (req, res) => {
 })
 
 const updateStudentDetails = asyncHandler(async (req, res) => {
-    const { student_id, aapar_id_no, parent_id, name, gender, category, student_email, student_contact, dob, admissionDate, parent_email, grade, section, mother_name, father_name, father_qualification, mother_qualification, father_occupation, mother_occupation, guardian_name, guradian_phone, mother_contact, father_contact, address, pincode, city, document_type, document_number, status, modeOfTransport, scholar_number, vehicle_number } = req.body
+    const { student_id, aapar_id_no, parent_id, name, gender, category, student_email, student_contact, dob, addmissionDate, parent_email, grade, section, mother_name, father_name, father_qualification, mother_qualification, father_occupation, mother_occupation, guardian_name, guradian_phone, mother_contact, father_contact, address, pincode, city, document_type, document_number, status, modeOfTransport, scholar_number, vehicle_number } = req.body
 
     if (
         [name, gender, category, dob, grade, section, mother_name, father_name, father_qualification, mother_qualification, father_occupation, mother_occupation, status, mother_contact, father_contact, address, pincode, city, vehicle_number].some((field) =>
@@ -202,7 +202,7 @@ const updateStudentDetails = asyncHandler(async (req, res) => {
     studentData.section = section;
     studentData.status = status;
     studentData.address = address;
-    studentData.addmissionDate = admissionDate;
+    studentData.addmissionDate = addmissionDate;
     studentData.pincode = pincode;
     studentData.city = city;
     studentData.document_type = document_type || null;
@@ -275,51 +275,55 @@ const updateClassList = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'No Updates Are Done')
     }
 
-    jsonData.forEach(async (student) => {
-        const studentData = await Student.findOne({ student_id: student.student_id })
+    for (const student of jsonData) {
+        const studentData = await Student.findOne({
+            student_id: student.student_id
+        });
 
-        const parentData = await Parent.findOne({ parent_id: student.parent_id })
+        const parentData = await Parent.findOne({
+            parent_id: "P" + student.student_id.slice(1)
+        });
 
         if (!studentData || !parentData) {
-            throw new ApiError(404, 'Student or Parent Not Found')
+            throw new ApiError(404, "Student or Parent Not Found");
         }
 
-        studentData.name = student.name
-        studentData.aapar_id_no = student.aapar_id_no || ''
-        studentData.gender = student.gender
-        studentData.category = student.category
-        studentData.student_email = student.student_email || null
-        studentData.student_contact = student.student_contact || null
-        studentData.dob = student.dob
-        studentData.grade = student.grade
-        studentData.section = student.section
-        studentData.status = student.status
-        studentData.address = student.address
-        studentData.addmissionDate = student.admissionDate
-        studentData.pincode = student.pincode
-        studentData.city = student.city
-        studentData.document_type = student.document_type || null
-        studentData.document_number = student.document_number || null
-        studentData.modeOfTransport = student.modeOfTransport
-        studentData.scholar_number = student.scholar_number || null
-        studentData.vehicle_number = student.vehicle_number
+        studentData.name = student.name || studentData.name
+        studentData.aapar_id_no = student.aapar_id_no || studentData.aapar_id_no
+        studentData.gender = student.gender || studentData.gender
+        studentData.category = student.category || studentData.category
+        studentData.student_email = student.student_email || studentData.student_email
+        studentData.student_contact = student.student_contact || studentData.student_contact
+        studentData.dob = student.dob || studentData.dob
+        studentData.grade = student.grade || studentData.grade
+        studentData.section = student.section || studentData.section
+        studentData.status = student.status || studentData.status
+        studentData.address = student.address || studentData.address
+        studentData.addmissionDate = student.addmissionDate || studentData.addmissionDate
+        studentData.pincode = student.pincode || studentData.pincode
+        studentData.city = student.city || studentData.city
+        studentData.document_type = student.document_type || studentData.document_type
+        studentData.document_number = student.document_number || studentData.document_number
+        studentData.modeOfTransport = student.modeOfTransport || studentData.modeOfTransport
+        studentData.scholar_number = student.scholar_number || studentData.scholar_number
+        studentData.vehicle_number = student.vehicle_number || studentData.vehicle_number
 
-        awaitstudentData.save()
+        await studentData.save()
 
-        parentData.father_name = student.father_name
-        parentData.mother_name = student.mother_name
-        parentData.guardian_name = student.guardian_name || null
-        parentData.guardian_phone = student.guradian_phone || null
-        parentData.parent_email = student.parent_email || null
-        parentData.father_qualification = student.father_qualification || null
-        parentData.mother_qualification = student.mother_qualification || null
-        parentData.mother_contact = student.mother_contact
-        parentData.father_contact = student.father_contact
-        parentData.mother_occupation = student.mother_occupation
-        parentData.father_occupation = student.father_occupation
+        parentData.father_name = student.father_name || parentData.father_name
+        parentData.mother_name = student.mother_name || parentData.mother_name
+        parentData.guardian_name = student.guardian_name || parentData.guardian_name
+        parentData.guardian_phone = student.guradian_phone || parentData.guardian_phone
+        parentData.parent_email = student.parent_email || parentData.parent_email
+        parentData.father_qualification = student.father_qualification || parentData.father_qualification
+        parentData.mother_qualification = student.mother_qualification || parentData.mother_qualification
+        parentData.mother_contact = student.mother_contact || parentData.mother_contact
+        parentData.father_contact = student.father_contact || parentData.father_contact
+        parentData.mother_occupation = student.mother_occupation || parentData.mother_occupation
+        parentData.father_occupation = student.father_occupation || parentData.father_occupation
 
         await parentData.save()
-    })
+    }
 
     return res
         .status(200)
@@ -538,15 +542,60 @@ const admissionReport = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Year is Required')
     }
 
-    const startDate = new Date(`${year}-01-01T00:00:00.000Z`)
-    const endDate = new Date(`${year}-12-31T23:59:59.999Z`)
+    const currentYear = new Date().getFullYear();
 
-    const admittedStudents = await Student.find({
-        addmissionDate: {
-            $gte: startDate,
-            $lte: endDate
+    if (year > currentYear) {
+        return { status: 404, message: "Future Year" };
+    }
+
+    const admittedStudents = await Student.aggregate([
+        {
+            $match: {
+                addmissionDate: {
+                    $gte: new Date(Number(year), 0, 1)
+                }
+            }
+        },
+        {
+            $lookup: {
+                from: "parents", // collection name
+                localField: "parent_id",
+                foreignField: "parent_id",
+                as: "parent"
+            }
+        },
+        {
+            $unwind: {
+                path: "$parent",
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                _id: 0,
+
+                // Student fields
+                student_id: 1,
+                name: 1,
+                addmissionDate: 1,
+                grade: 1,
+                section: 1,
+                gender: 1,
+                category: 1,
+                dob: 1,
+                document_number: 1,
+                scholar_number: 1,
+                status: 1,
+                session: 1,
+
+                // Parent fields
+                father_name: "$parent.father_name",
+                mother_name: "$parent.mother_name",
+                father_contact: "$parent.father_contact",
+                mother_contact: "$parent.mother_contact"
+            }
         }
-    }).lean()
+    ]);
 
     return res
         .status(200)
