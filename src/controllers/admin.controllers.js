@@ -1,3 +1,4 @@
+import { Activity } from "../models/activities.model.js";
 import { Admin } from "../models/admin.models.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
@@ -114,7 +115,7 @@ const LoginUser = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid Credentials");
     }
 
-    if (admin.userStatus === 'suspended' || admin.userStatus === 'terminated') {
+    if (admin.userStatus === 'terminated') {
         throw new ApiError(403, `User in ${admin.userType} mode Access Denied`)
     }
 
@@ -148,8 +149,9 @@ const LoginUser = asyncHandler(async (req, res) => {
 })
 //Get User Details
 const getUserDetails = asyncHandler(async (req, res) => {
-    const _id = req.admin._id || req.employee._id
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
     const findUser = await Admin.findById(_id).select('-password')
+
 
     if (findUser.userStatus === 'suspended' || findUser.userStatus === 'terminated') {
         throw new ApiError(403, 'Access Denied')
@@ -233,6 +235,77 @@ const getUserById = asyncHandler(async (req, res) => {
         )
 })
 
+const removeUser = asyncHandler(async (req, res) => {
+    const { _id } = req.body
+
+    if (!_id) {
+        throw new ApiError(400, 'ID is Null')
+    }
+
+    const getUser = await Admin.findById(_id)
+
+    if (!getUser) {
+        throw new ApiError(404, 'User Data Missing')
+    }
+
+    getUser.userStatus = 'terminated'
+    getUser.save()
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, {}, 'User Terminated Successfully')
+        )
+})
+
+const getActivity = asyncHandler(async (req, res) => {
+    const { _id } = req.query
+
+    if (!_id) {
+        throw new ApiError(400, 'Required User ID')
+    }
+
+    const getUser = await Activity.find({ user_id: _id })
+
+    if (!getUser) {
+        throw new ApiError(404, 'No Activities Found')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, { getUser }, 'Activities Found')
+        )
+})
+
+const updateUser = asyncHandler(async (req, res) => {
+    const { _id, username, mobile, name, userStatus } = req.body
+
+    if (
+        [_id, username, mobile, name, userStatus].some((item) => !item || item === '')
+    ) {
+        throw new ApiError(400, 'Required Inputs')
+    }
+
+    const findUser = await Admin.findById(_id)
+
+    if (!findUser) {
+        throw new ApiError(404, 'User Not Found')
+    }
+
+    findUser.username = username
+    findUser.mobile = mobile
+    findUser.name = name
+    findUser.userStatus = userStatus
+    findUser.save()
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, {}, 'User Updated Successfully')
+        )
+})
+
 export {
     refreshAccessToken,
     createUser,
@@ -241,4 +314,7 @@ export {
     logoutUser,
     searchQuery,
     getUserById,
+    removeUser,
+    getActivity,
+    updateUser
 }

@@ -33,7 +33,7 @@ const createVisitor = asyncHandler(async (req, res) => {
 })
 
 const getVisitorDetails = asyncHandler(async (req, res) => {
-    const { date } = req.body
+    const { date } = req.query
 
     if (!date) {
         throw new ApiError(400, "Date is required")

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { LoginUser, createUser, getUserById, getUserDetails, logoutUser, refreshAccessToken, searchQuery } from "../controllers/admin.controllers.js";
+import { LoginUser, createUser, getActivity, getUserById, getUserDetails, logoutUser, refreshAccessToken, removeUser, searchQuery, updateUser } from "../controllers/admin.controllers.js";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js";
 
 const router = Router()
@@ -13,6 +13,9 @@ router.route('/refreshAccessTokenAdmin').post(refreshAccessToken)
 router.route('/adminLogout').post(adminVerifyJWT, logoutUser)
 router.route('/searchQuery').get(adminVerifyJWT, searchQuery)
 router.route('/getUserById').get(adminVerifyJWT, getUserById)
+router.route('/removeUser').put(adminVerifyJWT, removeUser)
+router.route('/getActivity').get(adminVerifyJWT, getActivity)
+router.route('/updateUser').put(adminVerifyJWT, updateUser)
 
 //Employee Routes
 router.route('/getEmployee').get(employeeVerifyJWT, getUserDetails)
