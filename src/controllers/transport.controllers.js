@@ -4,8 +4,12 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import { Vehicle } from "../models/vehicles.models.js"
 import { Route } from '../models/route.models.js'
 import { TransportFees } from '../models/transport_fees.models.js'
+import { getCurrentSchoolSession } from "../utils/CurrentSession.js";
+import { SpecialDiscount } from "../models/special_discount.models.js";
 
 const addTransportRoute = asyncHandler(async (req, res) => {
+    var session = await getCurrentSchoolSession()
+
     const { vehicle_number, vehicle_type, capacity, driver_name, driver_mobile, status, route_name, start_location, end_location, description, amount } = req.body
 
     if (
@@ -26,7 +30,8 @@ const addTransportRoute = asyncHandler(async (req, res) => {
         capacity: capacity,
         driver_name: driver_name,
         driver_mobile: driver_mobile,
-        status: status
+        status: status,
+        session: session,
     });
 
     const addRoute = await Route.create({
@@ -34,12 +39,14 @@ const addTransportRoute = asyncHandler(async (req, res) => {
         start_location: start_location,
         end_location: end_location,
         vehicle_number: vehicle_number,
-        description: description || null
+        description: description || null,
+        session: session
     });
     const addTransportFees = await TransportFees.create({
         route_name: route_name,
         amount: amount,
-        vehicle_number: vehicle_number
+        vehicle_number: vehicle_number,
+        session: session
     });
 
     if (!saveVehicle || !addRoute || !addTransportFees) {
@@ -416,7 +423,7 @@ const isStudentPresent = asyncHandler(async (req, res) => {
 
 const getStudentDetails = asyncHandler(async (req, res) => {
     const session = await getCurrentSchoolSession()
-    const { vehicle_number } = req.body
+    const { vehicle_number } = req.query
 
     if (vehicle_number === "") {
         throw new ApiError(400, "Required Fields")

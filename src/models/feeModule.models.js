@@ -9,6 +9,15 @@ const feeModuleSchema = new Schema({
         type: String,
         required: true
     },
+    closingBalance: {
+        type: String
+    },
+    penalty: {
+        type: String,
+    },
+    penaltyDescription: {
+        type: String
+    },
     feeModule: [
         {
             monthName: {
@@ -19,7 +28,6 @@ const feeModuleSchema = new Schema({
                 type: Number,
                 required: true
             },
-
             compositeFee: {
                 type: Number,
                 default: 0
@@ -28,7 +36,6 @@ const feeModuleSchema = new Schema({
                 type: Number,
                 default: 0
             },
-
             admissionFees: {
                 type: Number,
                 default: 0   // Only April
@@ -42,7 +49,11 @@ const feeModuleSchema = new Schema({
                 default: 0   // Only August & December
             }
         }
-    ]
+    ],
+    description: {
+        type: String,
+        required: true
+    },
 }, { timestamps: true });
 
 export const FeeModule = mongoose.model("FeeModule", feeModuleSchema);

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { adminVerifyJWT, employeeVerifyJWT } from "../middlewares/auth.middlewares.js";
+import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js";
 import { admissionReport, assignRollNo, classImageList, findStudentsQuery, findStudentWithId, getClassStrength, getNotPromotedList, newAddmission, previousStudentList, promoteStudents, studentReport, swiftSection, updateClassList, updateImageOnCloud, updateStudentDetails } from "../controllers/students.controllers.js";
 
 const router = Router()
@@ -38,5 +38,9 @@ router.route('/employee/admissionReport').get(employeeVerifyJWT, admissionReport
 router.route('/employee/previousStudentList').get(employeeVerifyJWT, previousStudentList)
 router.route('/employee/studentReport').get(employeeVerifyJWT, studentReport)
 
+//Teacher Routes
+
+router.route('/teacher/classStrength').get(teacherVerifyJWT, getClassStrength)
+router.route('/teacher/assignRollNo').put(teacherVerifyJWT, assignRollNo)
 
 export default router; 

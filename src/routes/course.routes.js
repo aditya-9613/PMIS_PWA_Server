@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { createCourse, viewCourse, getCourse, allotCourse, getCourseById, updateCourseById, getStudentWithSubjects } from "../controllers/course.controllers.js"
-import { adminVerifyJWT, employeeVerifyJWT } from "../middlewares/auth.middlewares.js";
+import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js";
 
 const router = Router()
 
@@ -21,6 +21,9 @@ router.route('/employee/allotCourse').post(employeeVerifyJWT, allotCourse)
 router.route('/employee/getCourseById').get(employeeVerifyJWT, getCourseById)
 router.route('/employee/updateCourseById').put(employeeVerifyJWT, updateCourseById)
 router.route('/employee/getStudentWithSubjects').get(employeeVerifyJWT, getStudentWithSubjects)
+
+//Teacher Routes
+router.route('/teacher/getStudentWithSubjects').get(teacherVerifyJWT, getStudentWithSubjects)
 
 
 export default router; 

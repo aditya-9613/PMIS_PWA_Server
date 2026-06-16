@@ -4,7 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import { Course } from "../models/course.models.js"
 import { getCurrentSchoolSession } from '../utils/CurrentSession.js'
 import { createCourseID } from "../utils/IDs.js"
-import {Student} from "../models/students.models.js"
+import { Student } from "../models/students.models.js"
 
 const createCourse = asyncHandler(async (req, res) => {
     var session = await getCurrentSchoolSession()
@@ -247,7 +247,7 @@ const getStudentWithSubjects = asyncHandler(async (req, res) => {
 
     if (
         [grade, section, MaximumMarks, examType].some((items) =>
-            items.trim() === "" || items === 0)
+            items?.trim() === "" || items === 0 || !items)
     ) {
         throw new ApiError(400, "Required Inputs")
     }
@@ -294,7 +294,7 @@ const getStudentWithSubjects = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(
-            new ApiResponse(200, { students: studentsWithCourseDetails }, "Student Course Details")
+            new ApiResponse(200, studentsWithCourseDetails, "Student Course Details")
         )
 })
 
