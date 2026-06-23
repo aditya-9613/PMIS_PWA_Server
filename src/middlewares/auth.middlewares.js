@@ -2,6 +2,7 @@ import { ApiError } from "../utils/ApiError.js"
 import { Admin } from "../models/admin.models.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import jwt from 'jsonwebtoken'
+import { Teacher } from "../models/teacher.models.js"
 
 export const adminVerifyJWT = asyncHandler(async (req, _, next) => {
     try {
@@ -66,7 +67,7 @@ export const teacherVerifyJWT = asyncHandler(async (req, _, next) => {
 
         const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
 
-        const teacher = await Admin.findById(decodedToken?._id).select("-password")
+        const teacher = await Teacher.findById(decodedToken?._id).select("-password")
 
         if (!teacher) {
             throw new ApiError(401, "ACCESS_TOKEN_EXPIRED")

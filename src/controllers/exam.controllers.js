@@ -1085,23 +1085,28 @@ const saveTotalAttendance = asyncHandler(async (req, res) => {
 })
 
 const updateAttendanceTime = asyncHandler(async (req, res) => {
-    const { attendanceTime } = req.body
-    var session = await getCurrentSchoolSession()
+    const { preAttendanceTime, newAttendanceTime } = req.body
 
-    if (!attendanceTime || attendanceTime.trim() === "") {
-        throw new ApiError(400, 'Attendance Time Required')
-    }
+    const currentSession = await getCurrentSchoolSession();
 
-    const existingRecord = await Important.findOne({ attendanceTime: attendanceTime, session: session })
+    const existingRecord = await Important.findOne({
+        session: currentSession
+    });
 
-    if (existingRecord) {
-        existingRecord.attendanceTime = attendanceTime
-        await existingRecord.save()
-    } else {
-        const newRecord = await Important.create({ attendanceTime: attendanceTime, session: session })
-        if (!newRecord) {
-            throw new ApiError(500, 'Failed to save attendance time')
+    if (!existingRecord) {
+        // First time creation
+        if (!newAttendanceTime?.trim()) {
+            throw new ApiError(400, "Attendance Time Required");
         }
+
+        await Important.create({ attendanceTime: newAttendanceTime, session: currentSession });
+    } else {
+        // Update
+        if (!preAttendanceTime?.trim() || !newAttendanceTime?.trim()) {
+            throw new ApiError(400, "Previous and New Attendance Time Required");
+        }
+        existingRecord.attendanceTime = newAttendanceTime;
+        await existingRecord.save();
     }
 
     return res

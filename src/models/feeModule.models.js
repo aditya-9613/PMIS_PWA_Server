@@ -10,13 +10,15 @@ const feeModuleSchema = new Schema({
         required: true
     },
     closingBalance: {
-        type: String
-    },
-    penalty: {
-        type: String,
-    },
-    penaltyDescription: {
-        type: String
+        amount: {
+            type: Number,
+            default: 0
+        },
+        paid: {
+            type: String,
+            default: 'Yes',
+            enum: ['Yes', 'No']
+        }
     },
     feeModule: [
         {
@@ -47,12 +49,20 @@ const feeModuleSchema = new Schema({
             examFees: {
                 type: Number,
                 default: 0   // Only August & December
+            },
+            penalty: {
+                type: Number,
+                default: 0
+            },
+            paidStatus: {
+                type: Boolean,
+                default: false
             }
         }
     ],
     description: {
         type: String,
-        required: true
+        default: ' '
     },
 }, { timestamps: true });
 
