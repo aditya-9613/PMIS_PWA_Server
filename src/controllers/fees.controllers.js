@@ -1,3 +1,4 @@
+import { Admin } from "../models/admin.models.js";
 import { ClosingBalance } from "../models/closing_balance.models.js";
 import { Discount } from "../models/fee_discount.models.js";
 import { FeeModule } from "../models/feeModule.models.js";
@@ -175,7 +176,7 @@ const getFeeModule = asyncHandler(async (req, res) => {
 const updateFeeModule = asyncHandler(async (req, res) => {
     const session = await getCurrentSchoolSession()
 
-    const { student_id, feeModule } = req.body
+    const { student_id, feeModule, description, closingBalance } = req.body
 
     if (!student_id || student_id.trim() === "") {
         throw new ApiError(400, 'Student ID is required')
@@ -185,23 +186,46 @@ const updateFeeModule = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Fee Module must have exactly 12 months')
     }
 
+    // Fetch existing document to get current description
+    const existingModule = await FeeModule.findOne({ student_id, session })
+
+    if (!existingModule) {
+        throw new ApiError(404, "Fee Module not found")
+    }
+
+    // Build timestamp
+    // Build timestamp
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+    const pad = n => String(n).padStart(2, '0')
+    const hours24 = now.getHours()
+    const hours12 = hours24 % 12 || 12
+    const ampm = hours24 < 12 ? 'AM' : 'PM'
+    const timestamp = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()} ${pad(hours12)}:${pad(now.getMinutes())} ${ampm}`
+
+    // Append new description to existing
+    const updatedDescription = existingModule.description
+        ? `${existingModule.description} \\${timestamp}\\: ${description}`
+        : description
+
     const updateModule = await FeeModule.updateOne(
         { student_id, session },
-        { $set: { feeModule } }
+        {
+            $set: {
+                feeModule,
+                description: updatedDescription,
+                closingBalance,
+            },
+        }
     )
 
     if (updateModule.matchedCount === 0) {
-        throw new ApiError(404, 'Fee Module not found')
-    }
-
-    if (updateModule.modifiedCount === 0) {
-        throw new ApiError(500, 'Fee Module update failed')
+        throw new ApiError(404, "Fee Module not found")
     }
 
     return res
         .status(200)
         .json(
-            new ApiResponse(200, {}, 'Fee Module Updated Successfully')
+            new ApiResponse(200, {}, "Fee Module Updated Successfully")
         )
 })
 
@@ -404,6 +428,850 @@ const studentFeeData = asyncHandler(async (req, res) => {
         )
 })
 
+const makePayment = asyncHandler(async (req, res) => {
+    const { student_id, amount, grade, section, discount, paid_till_month, fees_breakout, payment_method, status, type } = req.body
+
+    var session = await getCurrentSchoolSession()
+
+    if (
+        [student_id, amount, grade, section, payment_method, status, type].some((item) => !item)
+    ) {
+        throw new ApiResponse(400, 'Required Inputs')
+    }
+
+    const dateOBJ = new Date()
+
+    const payment_date = dateOBJ.toString()
+
+    var user = ''
+
+    if (type === 'admin') {
+        const admin = await Admin.findById(req?.admin._id)
+        user = admin.name
+    } else if (type === 'employee') {
+        const employee = await Admin.findById(req?.employee._id)
+        user = employee.name
+    } else {
+        throw new ApiError(401, 'Not Autorised')
+    }
+
+    var receipt_no = 0
+
+    const previousRecieptNo = await Payment.findOne().sort({ receipt_no: -1 }).limit(1)
+
+    if (previousRecieptNo) {
+        receipt_no = previousRecieptNo.receipt_no + 1
+    }
+
+    const createPayment = await Payment.create({
+        student_id,
+        receipt_no,
+        amount,
+        grade,
+        section,
+        discount,
+        paid_till_month,
+        payment_date,
+        fees_breakout,
+        payment_method,
+        session,
+        user,
+        status,
+        dateOBJ,
+    })
+
+    if (!createPayment) {
+        throw new ApiError(500, 'Server Error')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, {}, 'Payment Done Successfully')
+        )
+})
+
+const getReceipts = asyncHandler(async (req, res) => {
+    const { student_id } = req.query
+
+    if (!student_id) {
+        throw new ApiError(400, 'Required Inputs')
+    }
+
+    const session = await getCurrentSchoolSession()
+
+    const findPayments = await Payment.aggregate([
+        {
+            $match: {
+                student_id: `${student_id}`,
+                session: session,
+                status: 'Active'
+            }
+        },
+        {
+            $lookup: {
+                from: "students",
+                localField: "student_id",
+                foreignField: "student_id",
+                as: "student_info"
+            }
+        },
+        {
+            $unwind: {
+                path: "$student_info",
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $lookup: {
+                from: "parents",
+                localField: "student_info.parent_id",
+                foreignField: "parent_id",
+                as: "parent_info"
+            }
+        },
+        {
+            $unwind: {
+                path: "$parent_info",
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                student_id: 1,
+                receipt_no: 1,
+                amount: 1,
+                discount: 1,
+                paid_till_month: 1,
+                payment_date: 1,
+                fees_breakout: 1,
+                payment_method: 1,
+                session: 1,
+                status: 1,
+                user: 1,
+                dateOBJ: 1,
+                grade: 1,
+                section: 1,
+                name: "$student_info.name",
+                gender: "$student_info.gender",
+                category: "$student_info.category",
+                roll_number: "$student_info.roll_number",
+                father_name: "$parent_info.father_name",
+                father_contact: "$parent_info.father_contact"
+            }
+        }
+    ])
+
+    if (!findPayments || findPayments.length === 0) {
+        throw new ApiError(404, 'No Payments Found')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, findPayments, 'Student Payment Records')
+        )
+})
+
+const cancelSlip = asyncHandler(async (req, res) => {
+    const { _id, student_id, description } = req.body
+
+    if (!_id || !student_id) {
+        throw new ApiError(400, 'Required Inputs')
+    }
+
+    const findReceipt = await Payment.findById(_id)
+
+    if (findReceipt.student_id !== student_id) {
+        throw new ApiError(404, 'Slip Mismatch')
+    }
+
+    findReceipt.status = 'Cancelled'
+    findReceipt.save()
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, {}, 'Receipt Cancelled')
+        )
+})
+
+const fetchCancelledSlips = asyncHandler(async (req, res) => {
+    const { student_id } = req.query
+
+    if (!student_id) {
+        throw new ApiError(400, 'Required Inputs')
+    }
+
+    const session = await getCurrentSchoolSession()
+
+    const findSlips = await Payment.aggregate([
+        {
+            $match: {
+                student_id: `${student_id}`,
+                session: session,
+                status: 'Inactive'
+            }
+        },
+        {
+            $lookup: {
+                from: "students",
+                localField: "student_id",
+                foreignField: "student_id",
+                as: "student_info"
+            }
+        },
+        {
+            $unwind: {
+                path: "$student_info",
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $lookup: {
+                from: "parents",
+                localField: "student_info.parent_id",
+                foreignField: "parent_id",
+                as: "parent_info"
+            }
+        },
+        {
+            $unwind: {
+                path: "$parent_info",
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                student_id: 1,
+                receipt_no: 1,
+                amount: 1,
+                discount: 1,
+                paid_till_month: 1,
+                payment_date: 1,
+                fees_breakout: 1,
+                payment_method: 1,
+                session: 1,
+                status: 1,
+                user: 1,
+                dateOBJ: 1,
+                grade: 1,
+                section: 1,
+                name: "$student_info.name",
+                gender: "$student_info.gender",
+                category: "$student_info.category",
+                roll_number: "$student_info.roll_number",
+                father_name: "$parent_info.father_name",
+                father_contact: "$parent_info.father_contact"
+            }
+        }
+    ])
+
+    if (!findSlips || findSlips.length === 0) {
+        throw new ApiError(404, 'No Cancelled Slips Found')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, findSlips, 'Cancelled Slips')
+        )
+})
+
+const transitReceipts = asyncHandler(async (req, res) => {
+    const receipts = await Payment.find();
+
+    let counter = 1;
+
+    for (const receipt of receipts) {
+        receipt.status = 'Active';
+        receipt.user = 'System Software';
+
+        if (receipt.payment_date) {
+            receipt.dateOBJ = new Date(receipt.payment_date);
+        }
+
+        await receipt.save();
+
+        console.log(`Updated ${counter}`);
+        counter++;
+    }
+})
+
+const monthlyReport = asyncHandler(async (req, res) => {
+    const { month, year } = req.query
+
+    if (!month || !year) {
+        throw new ApiError(400, 'Required Fields')
+    }
+
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    if (year > new Date().getFullYear()) {
+        throw new ApiError(429, 'Future Year')
+    }
+
+    const monthCode = months.indexOf(month)
+
+    const start_date = new Date(parseInt(year), monthCode, 1, 0, 0, 0, 0)
+
+    const end_date = new Date(parseInt(year), monthCode + 1, 0, 23, 59, 59, 999)
+
+    const payments = await Payment.aggregate([
+        {
+            $match: {
+                dateOBJ: {
+                    $gte: start_date,
+                    $lte: end_date
+                },
+                status: 'Active'
+            }
+        },
+        {
+            $lookup: {
+                from: "students",
+                localField: "student_id",
+                foreignField: "student_id",
+                as: "student_info"
+            }
+        },
+        {
+            $unwind: {
+                path: "$student_info",
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $lookup: {
+                from: "parents",
+                localField: "student_info.parent_id",
+                foreignField: "parent_id",
+                as: "parent_info"
+            }
+        },
+        {
+            $unwind: {
+                path: "$parent_info",
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                student_id: 1,
+                receipt_no: 1,
+                amount: 1,
+                discount: 1,
+                paid_till_month: 1,
+                payment_date: 1,
+                fees_breakout: 1,
+                payment_method: 1,
+                session: 1,
+                status: 1,
+                user: 1,
+                dateOBJ: 1,
+                grade: 1,
+                section: 1,
+                name: "$student_info.name",
+                gender: "$student_info.gender",
+                category: "$student_info.category",
+                roll_number: "$student_info.roll_number",
+                father_name: "$parent_info.father_name",
+                father_contact: "$parent_info.father_contact"
+            }
+        },
+        {
+            $sort: { payment_date: 1 }
+        }
+    ])
+
+    if (!payments.length) {
+        throw new ApiError(404, 'No payments found for this month')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, payments, 'Monthly Report')
+        )
+})
+
+const headCollection = asyncHandler(async (req, res) => {
+    const { grade, section } = req.query
+
+    const session = await getCurrentSchoolSession()
+
+    const getStudents = await Student.find({
+        grade,
+        section,
+        session,
+        status: { $in: ['Active', 'Inactive'] }
+    }).sort({ roll_number: 1 })
+
+    const outputArray = []
+
+    for (const student of getStudents) {
+        const getPayment = await Payment.find({
+            student_id: student.student_id,
+            session
+        })
+
+        outputArray.push({
+            student_id: student.student_id,
+            name: student.name,
+            roll_number: student.roll_number,
+            grade: student.grade,
+            section: student.section,
+            session: student.session,
+            payments: getPayment
+        })
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, outputArray, 'Payment records')
+        )
+})
+
+const defaultersList = asyncHandler(async (req, res) => {
+
+    const session = await getCurrentSchoolSession()
+    const { grade, section, month } = req.query
+
+    if (!grade || !section) {
+        throw new ApiError(400, 'Required Inputs')
+    }
+
+    const currentMonth = Number(month) || (new Date().getMonth() + 1)
+
+    const findAllStudents = await Student.aggregate([
+        {
+            $match: { grade, section, session, status: { $in: ['Active', 'Inactive'] } }
+        },
+        {
+            $lookup: {
+                from: 'parents',
+                localField: 'parent_id',
+                foreignField: 'parent_id',
+                as: 'parent_info'
+            }
+        },
+        {
+            $unwind: { path: '$parent_info', preserveNullAndEmptyArrays: true }
+        },
+        {
+            $addFields: { roll_number_int: { $toInt: '$roll_number' } }
+        },
+        {
+            $sort: { roll_number_int: 1 }
+        }
+    ])
+
+    if (!findAllStudents.length) {
+        throw new ApiError(404, 'No Students Found')
+    }
+
+    const ACADEMIC_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
+    const currentMonthAcademicIndex = ACADEMIC_ORDER.indexOf(currentMonth)
+
+    const outputArray = []
+
+    for (const student of findAllStudents) {
+
+        const findFeeModule = await FeeModule.findOne({
+            student_id: student.student_id,
+            session
+        })
+
+        let total_due_amount = 0
+
+        if (!findFeeModule) {
+            outputArray.push({
+                roll_number: student.roll_number,
+                student_id: student.student_id,
+                name: student.name,
+                grade: student.grade,
+                section: student.section,
+                father_name: student.parent_info?.father_name || '—',
+                mother_name: student.parent_info?.mother_name || '—',
+                father_contact: student.parent_info?.father_contact || '—',
+                amount: 0,
+                status: student.status
+            })
+            continue
+        }
+
+        const feeModuleMonths = findFeeModule.feeModule
+        const closingBalance = findFeeModule.closingBalance
+        const closingDue = (closingBalance && closingBalance.paid === 'No')
+            ? Number(closingBalance.amount || 0)
+            : 0
+
+        // Find last paid month from feeModule
+        const paidMonths = feeModuleMonths.filter(m => m.paidStatus === true)
+
+        const lastPaidMonth = paidMonths.length > 0
+            ? paidMonths.reduce((last, m) => {
+                const idx = ACADEMIC_ORDER.indexOf(m.monthCode)
+                return idx > ACADEMIC_ORDER.indexOf(last.monthCode) ? m : last
+            })
+            : null
+
+        const lastPaidAcademicIndex = lastPaidMonth
+            ? ACADEMIC_ORDER.indexOf(lastPaidMonth.monthCode)
+            : -1
+
+        // ── CASE 1: Last paid month is STRICTLY AHEAD of current month ──────
+        if (lastPaidAcademicIndex > currentMonthAcademicIndex) {
+            total_due_amount = 0
+        }
+        // ── CASE 2: Last paid month is EQUAL TO or BEHIND current 
+        else if (lastPaidMonth) {
+            const lastReceipt = await Payment.findOne({
+                student_id: student.student_id,
+                session,
+                status: 'Active'
+            }).sort({ dateOBJ: -1 })
+
+            let leftOverDue = 0
+            if (lastReceipt?.paid_till_month) {
+                const leftOverRaw = String(lastReceipt.paid_till_month).split(' ')[0]
+                leftOverDue = isNaN(Number(leftOverRaw)) ? 0 : Number(leftOverRaw)
+            }
+
+            // Months AFTER last paid month up to current month that are still unpaid
+            const unpaidAfterLastPaid = feeModuleMonths.filter(m => {
+                const idx = ACADEMIC_ORDER.indexOf(m.monthCode)
+                return !m.paidStatus &&
+                    idx > lastPaidAcademicIndex &&
+                    idx <= currentMonthAcademicIndex
+            })
+
+            const unpaidAfterFee = unpaidAfterLastPaid.reduce((sum, m) => {
+                return sum +
+                    Number(m.compositeFee || 0) +
+                    Number(m.transportFees || 0) +
+                    Number(m.admissionFees || 0) +
+                    Number(m.annualCharges || 0) +
+                    Number(m.examFees || 0) +
+                    Number(m.penalty || 0)
+            }, 0)
+
+            total_due_amount = leftOverDue + unpaidAfterFee + closingDue
+        }
+        // ── CASE 3: No payment done at all ───────────────────────────────────
+        else {
+            const monthsDueTillNow = feeModuleMonths.filter(m => {
+                const idx = ACADEMIC_ORDER.indexOf(m.monthCode)
+                return idx <= currentMonthAcademicIndex
+            })
+
+            const totalFeeTillNow = monthsDueTillNow.reduce((sum, m) => {
+                return sum +
+                    Number(m.compositeFee || 0) +
+                    Number(m.transportFees || 0) +
+                    Number(m.admissionFees || 0) +
+                    Number(m.annualCharges || 0) +
+                    Number(m.examFees || 0) +
+                    Number(m.penalty || 0)
+            }, 0)
+
+            total_due_amount = totalFeeTillNow + closingDue
+        }
+
+        outputArray.push({
+            roll_number: student.roll_number,
+            student_id: student.student_id,
+            name: student.name,
+            grade: student.grade,
+            section: student.section,
+            father_name: student.parent_info?.father_name || '—',
+            mother_name: student.parent_info?.mother_name || '—',
+            father_contact: student.parent_info?.father_contact || '—',
+            amount: total_due_amount,
+            status: student.status
+        })
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, outputArray, 'Defaulters List'))
+})
+
+const feeRecords = asyncHandler(async (req, res) => {
+    const { grade } = req.query
+
+    if (!grade) {
+        throw new ApiError(400, 'Required Fields')
+    }
+
+    const session = await getCurrentSchoolSession()
+
+    const findStudentsFeeModule = await Student.aggregate([
+        {
+            $match: {
+                grade: grade,
+                session: session,
+                status: { $in: ['Active', 'Inactive'] }
+            }
+        },
+        {
+            $lookup: {
+                from: 'feemodules',
+                localField: 'student_id',
+                foreignField: 'student_id',
+                as: 'feeModule'
+            }
+        },
+        {
+            $unwind: {
+                path: '$feeModule',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $addFields: {
+                roll_number_int: { $toInt: '$roll_number' }
+            }
+        },
+        {
+            $sort: { roll_number_int: 1 }
+        },
+        {
+            $project: {
+                _id: 1,
+                student_id: 1,
+                name: 1,
+                grade: 1,
+                section: 1,
+                roll_number: 1,
+                session: 1,
+                status: 1,
+                feeModule: 1
+            }
+        }
+    ])
+
+    if (!findStudentsFeeModule.length) {
+        throw new ApiError(404, 'No Records Found')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, findStudentsFeeModule, 'Fee Records')
+        )
+})
+
+const feeEstimate = asyncHandler(async (req, res) => {
+    const session = await getCurrentSchoolSession();
+
+    const feeStructures = await FeeStructure.find({ session });
+
+    const feesEstimate = await Promise.all(
+        feeStructures.map(async (item) => {
+            const studentCount = await Student.countDocuments({
+                grade: item.grade,
+                session,
+                status: { $in: ["Active", "Inactive"] }
+            });
+
+            const totalAmount =
+                (
+                    Number(item.fee_Amount || 0) * 14 +
+                    Number(item.admissionFees || 0) +
+                    Number(item.resgistrationFees || 0) +
+                    Number(item.annualCharges || 0)
+                ) * studentCount;
+
+            return {
+                grade: item.grade,
+                fee_Amount: item.fee_Amount,
+                admissionFees: item.admissionFees,
+                resgistrationFees: item.resgistrationFees,
+                examFees: item.examFees,
+                annualCharges: item.annualCharges,
+                studentCount,
+                totalAmount
+            };
+        })
+    );
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, feesEstimate, 'Fees Estimate')
+        )
+})
+
+const closingBalanceList = asyncHandler(async (req, res) => {
+    const session = await getCurrentSchoolSession()
+
+    const findClosingBalances = await ClosingBalance.aggregate([
+        {
+            $match: { session: session }
+        },
+        {
+            $lookup: {
+                from: 'students',
+                localField: 'student_id',
+                foreignField: 'student_id',
+                as: 'student_info'
+            }
+        },
+        {
+            $unwind: {
+                path: '$student_info',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $lookup: {
+                from: 'parents',
+                localField: 'student_info.parent_id',
+                foreignField: 'parent_id',
+                as: 'parent_info'
+            }
+        },
+        {
+            $unwind: {
+                path: '$parent_info',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                student_id: 1,
+                closing_balance_amount: 1,
+                closing_balance_date: 1,
+                paid: 1,
+                session: 1,
+                name: '$student_info.name',
+                grade: '$student_info.grade',
+                section: '$student_info.section',
+                roll_number: '$student_info.roll_number',
+                status: '$student_info.status',
+                father_name: '$parent_info.father_name',
+                father_contact: '$parent_info.father_contact'
+            }
+        },
+        {
+            $sort: { grade: 1, section: 1, roll_number: 1 }
+        }
+    ])
+
+    if (findClosingBalances.length === 0) {
+        throw new ApiError(404, 'No Closing Balances Records')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, findClosingBalances, 'Closing Balances List')
+        )
+})
+
+const dayBook = asyncHandler(async (req, res) => {
+    const { day, month, year } = req.query
+
+    if (!day || !month || !year) {
+        throw new ApiError(400, 'Required Fields')
+    }
+
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    const monthCode = months.indexOf(month)
+
+    if (monthCode === -1) {
+        throw new ApiError(400, 'Invalid Month')
+    }
+
+    const start_date = new Date(parseInt(year), monthCode, parseInt(day), 0, 0, 0, 0)
+    const end_date = new Date(parseInt(year), monthCode, parseInt(day), 23, 59, 59, 999)
+
+    const payments = await Payment.aggregate([
+        {
+            $match: {
+                dateOBJ: {
+                    $gte: start_date,
+                    $lte: end_date
+                },
+                status: 'Active'
+            }
+        },
+        {
+            $lookup: {
+                from: "students",
+                localField: "student_id",
+                foreignField: "student_id",
+                as: "student_info"
+            }
+        },
+        {
+            $unwind: {
+                path: "$student_info",
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $lookup: {
+                from: "parents",
+                localField: "student_info.parent_id",
+                foreignField: "parent_id",
+                as: "parent_info"
+            }
+        },
+        {
+            $unwind: {
+                path: "$parent_info",
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                student_id: 1,
+                receipt_no: 1,
+                amount: 1,
+                discount: 1,
+                paid_till_month: 1,
+                payment_date: 1,
+                fees_breakout: 1,
+                payment_method: 1,
+                session: 1,
+                status: 1,
+                user: 1,
+                dateOBJ: 1,
+                grade: 1,
+                section: 1,
+                name: "$student_info.name",
+                gender: "$student_info.gender",
+                category: "$student_info.category",
+                roll_number: "$student_info.roll_number",
+                father_name: "$parent_info.father_name",
+                father_contact: "$parent_info.father_contact"
+            }
+        },
+        {
+            $sort: { payment_date: 1 }
+        }
+    ])
+
+    if (!payments.length) {
+        throw new ApiError(404, 'No payments found for this day')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, payments, 'Day Book')
+        )
+})
+
+
 export {
     setupFees,
     getFeesStructure,
@@ -414,5 +1282,17 @@ export {
     updateFeeModule,
     addPenalty,
     getPenalty,
-    studentFeeData
+    studentFeeData,
+    makePayment,
+    getReceipts,
+    cancelSlip,
+    fetchCancelledSlips,
+    transitReceipts,
+    monthlyReport,
+    defaultersList,
+    feeRecords,
+    feeEstimate,
+    headCollection,
+    closingBalanceList,
+    dayBook
 }

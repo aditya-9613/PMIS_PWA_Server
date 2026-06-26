@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js"
-import { addPenalty, createFeeModule, editFeesStructure, getClassFeeStructure, getFeeModule, getFeesStructure, getPenalty, setupFees, studentFeeData, updateFeeModule } from "../controllers/fees.controllers.js";
+import { addPenalty, cancelSlip, closingBalanceList, createFeeModule, dayBook, defaultersList, editFeesStructure, feeEstimate, feeRecords, fetchCancelledSlips, getClassFeeStructure, getFeeModule, getFeesStructure, getPenalty, getReceipts, headCollection, makePayment, monthlyReport, setupFees, studentFeeData, transitReceipts, updateFeeModule } from "../controllers/fees.controllers.js";
 
 const router = Router()
 
-// router.route('/transformsDiscounts').post(convertFeeModule)
+// router.route('/transformsDiscounts').get(transitReceipts)
 //Admin Routes
 router.route('/admin/setupFees').post(adminVerifyJWT, setupFees)
 router.route('/admin/getFeesStructure').get(adminVerifyJWT, getFeesStructure)
@@ -16,14 +16,34 @@ router.route('/admin/getFeeModule').get(adminVerifyJWT, getFeeModule)
 router.route('/admin/customPenalty').post(adminVerifyJWT, addPenalty)
 router.route('/admin/getCustomPenalty').get(adminVerifyJWT, getPenalty)
 router.route('/admin/studentFee').get(adminVerifyJWT, studentFeeData)
+router.route('/admin/makePayment').post(adminVerifyJWT, makePayment)
+router.route('/admin/cancelReceipt').put(adminVerifyJWT, cancelSlip)
+router.route('/admin/fetchCancelledSlips').get(adminVerifyJWT, fetchCancelledSlips)
+router.route('/admin/monthlyReport').get(adminVerifyJWT, monthlyReport)
+router.route('/admin/defaulterList').get(defaultersList)
+router.route('/admin/feeRecords').get(adminVerifyJWT, feeRecords)
+router.route('/admin/getReceipts').get(adminVerifyJWT, getReceipts)
+router.route('/admin/headCollection').get(adminVerifyJWT, headCollection)
+router.route('/admin/getFeeEstimate').get(adminVerifyJWT, feeEstimate)
+router.route('/admin/closingBalance').get(adminVerifyJWT, closingBalanceList)
+router.route('/admin/dayBook').get(adminVerifyJWT, dayBook)
 
 //Employee Routes
 router.route('/employee/getFeesStructure').get(employeeVerifyJWT, getFeesStructure)
 router.route('/employee/classFeeStructure').get(employeeVerifyJWT, getClassFeeStructure)
-router.route('/employee/updateFeeModule').put(employeeVerifyJWT, updateFeeModule)
 router.route('/employee/getFeeModule').get(employeeVerifyJWT, getFeeModule)
 router.route('/employee/customPenalty').post(employeeVerifyJWT, addPenalty)
 router.route('/employee/getCustomPenalty').get(employeeVerifyJWT, getPenalty)
 router.route('/employee/studentFee').get(employeeVerifyJWT, studentFeeData)
+router.route('/employee/makePayment').post(employeeVerifyJWT, makePayment)
+router.route('/employee/monthlyReport').get(employeeVerifyJWT, monthlyReport)
+router.route('/employee/defaulterList').get(employeeVerifyJWT,defaultersList)
+router.route('/employee/feeRecords').get(employeeVerifyJWT, feeRecords)
+router.route('/employee/getReceipts').get(employeeVerifyJWT, getReceipts)
+router.route('/employee/fetchCancelledSlips').get(employeeVerifyJWT, fetchCancelledSlips)
+router.route('/employee/headCollection').get(employeeVerifyJWT, headCollection)
+router.route('/employee/closingBalance').get(employeeVerifyJWT, closingBalanceList)
+router.route('/employee/getFeeEstimate').get(employeeVerifyJWT, feeEstimate)
+router.route('/employee/dayBook').get(employeeVerifyJWT, dayBook)
 
 export default router; 

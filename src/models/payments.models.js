@@ -35,6 +35,18 @@ const paymentSchema = new Schema({
     session: {
         type: String
     },
+    user: {
+        type: String,
+        required: true,
+    },
+    status: {
+        type: String,
+        default: 'Active'
+    },
+    dateOBJ: {
+        type: Date,
+        required: true,
+    }
 })
 
 paymentSchema.plugin(mongooseAggregatePaginate)
