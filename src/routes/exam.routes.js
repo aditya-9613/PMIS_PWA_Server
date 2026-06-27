@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js"
-import { defineExam, genrateAdmitCards, getExams, getSchedule, scheduleExam, upsertExamMarks, getExamMarks, saveScholasticMarks, getScholasticMarks, classTopper, getResultData, dailyAttendanceUpdates, getAttendanceRecords, saveTotalAttendance, updateAttendanceTime, getAttendanceTime, createImportant } from "../controllers/exam.controllers.js";
+import { defineExam, genrateAdmitCards, getExams, getSchedule, scheduleExam, upsertExamMarks, getExamMarks, saveScholasticMarks, getScholasticMarks, classTopper, getResultData, dailyAttendanceUpdates, getAttendanceRecords, saveTotalAttendance, updateAttendanceTime, getAttendanceTime } from "../controllers/exam.controllers.js";
 
 const router = Router()
-router.route('/createImportant').post(createImportant)
+
 //Admin Routes
 router.route('/admin/defineExam').post(adminVerifyJWT, defineExam)
 router.route('/admin/getExams').get(adminVerifyJWT, getExams)

@@ -8,7 +8,7 @@ router.route('/login').post(LoginUser)
 router.route('/teacherLogin').post(TeacherLogin)
 
 //Admin Routes
-router.route('/CreateUser').post(createUser)
+router.route('/CreateUser').post(adminVerifyJWT,createUser)
 router.route('/getAdmin').get(adminVerifyJWT, getUserDetails)
 router.route('/refreshAccessTokenAdmin').post(refreshAccessToken)
 router.route('/adminLogout').post(adminVerifyJWT, logoutUser)

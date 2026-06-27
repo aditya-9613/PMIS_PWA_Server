@@ -1,5 +1,6 @@
 import { Parent } from "../models/parent.models.js";
 import { Student } from "../models/students.models.js";
+import { CreateActivity } from "../utils/Activity.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -85,6 +86,10 @@ const newAddmission = asyncHandler(async (req, res) => {
     if (!CreateParent._id || !CreateStudent._id) {
         return ({ status: 500, message: 'Server Not Working Properly' })
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Admission', `New Admission done for student with name ${name}`)
 
     return res
         .status(200)
@@ -233,6 +238,10 @@ const updateStudentDetails = asyncHandler(async (req, res) => {
 
     await parentData.save();
 
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Update', `Student Details updated for ${name} with ID ${student_id}`)
+
     return res
         .status(200)
         .json(
@@ -286,6 +295,10 @@ const updateImageOnCloud = asyncHandler(async (req, res) => {
 
     student.student_image = uploaded.secure_url
     await student.save()
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Update', `Image Uploaded of student ${student_id}`)
 
     return res
         .status(200)
@@ -352,6 +365,10 @@ const updateClassList = asyncHandler(async (req, res) => {
         await parentData.save()
     }
 
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Update', 'Class list Updated')
+
     return res
         .status(200)
         .json(
@@ -389,6 +406,10 @@ const assignRollNo = asyncHandler(async (req, res) => {
             throw new ApiError(500, `Server Error ${item.name}`)
         }
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Assign', 'Roll Number Assigned')
 
     return res
         .status(200)
@@ -525,13 +546,20 @@ const promoteStudents = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Promotion List Cannot Be Empty')
     }
 
+    let stuArray = []
+
     promotionList.forEach(async (item) => {
+        stuArray.push(item.student_id)
         const promoteStudent = await Student.updateOne({ student_id: item.student_id, status: 'Not-Promoted' }, { status: 'Inactive', grade: item.promote_to })
 
         if (!promoteStudent.acknowledged) {
             throw new ApiError(500, `Server Error at ${item.name}`)
         }
     })
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Prmotion', `Promotion done for students with ID ${stuArray.join(',')}`)
 
     return res
         .status(200)
@@ -547,13 +575,20 @@ const swiftSection = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'No Student Selected')
     }
 
+    let stuArray = []
+
     selectedStudent.forEach(async (item) => {
+        stuArray.push(item.student_id)
         const updateSection = await Student.updateOne({ student_id: item.student_id }, { section: item.section })
 
         if (!updateSection.acknowledged) {
             throw new ApiError(500, `Server Error at ${item.name}`)
         }
     })
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Section Swifted', `Promotion done for students with ID ${stuArray.join(',')}`)
 
     return res
         .status(200)

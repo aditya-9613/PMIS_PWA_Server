@@ -1235,3 +1235,7 @@
 //         manualReview: manualReviewArray
 //     })
 // })
+
+const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id,type,'','')

@@ -59,6 +59,10 @@ const createCourse = asyncHandler(async (req, res) => {
         throw new ApiError(500, 'Server Not Working')
     }
 
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Create', `User Created the Course for class ${grade}`)
+
     return res
         .status(200)
         .json(
@@ -171,6 +175,10 @@ const allotCourse = asyncHandler(async (req, res) => {
         );
     }
 
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Allotment', 'Course alloted for the students')
+
     return res
         .status(200)
         .json(
@@ -232,6 +240,10 @@ const updateCourseById = asyncHandler(async (req, res) => {
     if (!updateCourse.acknowledged) {
         throw new ApiError(500, 'Server Error')
     }
+
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id,type,'Update',`User Updated the course with course ID ${course_id}`)
 
     return res
         .status(200)

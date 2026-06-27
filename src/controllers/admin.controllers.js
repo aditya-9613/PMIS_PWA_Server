@@ -1,6 +1,7 @@
 import { Activity } from "../models/activities.model.js";
 import { Admin } from "../models/admin.models.js";
 import { Teacher } from "../models/teacher.models.js";
+import { CreateActivity } from "../utils/Activity.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
@@ -140,6 +141,7 @@ const createUser = asyncHandler(async (req, res) => {
     if (!newUser) {
         throw new ApiError(500, 'Error while creating user')
     }
+    await CreateActivity(req?.admin?._id, 'admin', 'Creation', 'User Created By Admin')
 
     return res
         .status(200)
@@ -180,6 +182,7 @@ const LoginUser = asyncHandler(async (req, res) => {
         secure: true,
         sameSite: 'none'
     }
+    await CreateActivity(admin._id, type, 'Login', 'User Logged In')
 
     return res
         .status(200)
@@ -226,6 +229,8 @@ const TeacherLogin = asyncHandler(async (req, res) => {
         secure: true,
         sameSite: 'none'
     }
+
+    await CreateActivity(findTeacher._id, type, 'Login', 'User Logged In')
 
     return res
         .status(200)
@@ -280,6 +285,9 @@ const logoutUser = asyncHandler(async (req, res) => {
         secure: true
     }
 
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Logged Out', 'User Logged Out from ERP')
+
     return res
         .status(200)
         .clearCookie("accessToken", options)
@@ -307,6 +315,9 @@ const teacherLogout = asyncHandler(async (req, res) => {
         httpOnly: true,
         secure: true
     }
+
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Logged Out', 'User Logged Out from ERP')
 
     return res
         .status(200)
@@ -374,6 +385,9 @@ const removeUser = asyncHandler(async (req, res) => {
 
     getUser.userStatus = 'terminated'
     getUser.save()
+
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Remove', 'User Removed from status set to terminated')
 
     return res
         .status(200)
@@ -448,6 +462,9 @@ const updateUser = asyncHandler(async (req, res) => {
     findUser.userStatus = userStatus
     findUser.save()
 
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Update', 'User Details Updated')
+
     return res
         .status(200)
         .json(
@@ -485,6 +502,10 @@ const changePassword = asyncHandler(async (req, res) => {
     findUser.password = newPassword
     await findUser.save()
 
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Update', 'User changed the password')
+
     return res
         .status(200)
         .json(
@@ -517,6 +538,10 @@ const changeTeacherPassword = asyncHandler(async (req, res) => {
 
     findTeacher.password = newPassword
     await findTeacher.save()
+
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id,type,'Update','Teacher Updated the Password')
 
     return res
         .status(200)

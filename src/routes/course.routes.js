@@ -23,6 +23,12 @@ router.route('/employee/updateCourseById').put(employeeVerifyJWT, updateCourseBy
 router.route('/employee/getStudentWithSubjects').get(employeeVerifyJWT, getStudentWithSubjects)
 
 //Teacher Routes
+router.route('/teacher/createCourse').post(employeeVerifyJWT, createCourse)
+router.route('/teacher/viewCourse').get(employeeVerifyJWT, viewCourse)
+router.route('/teacher/getCourse').get(employeeVerifyJWT, getCourse)
+router.route('/teacher/allotCourse').post(employeeVerifyJWT, allotCourse)
+router.route('/teacher/getCourseById').get(employeeVerifyJWT, getCourseById)
+router.route('/teacher/updateCourseById').put(employeeVerifyJWT, updateCourseById)
 router.route('/teacher/getStudentWithSubjects').get(teacherVerifyJWT, getStudentWithSubjects)
 
 

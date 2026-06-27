@@ -6,6 +6,7 @@ import { Route } from '../models/route.models.js'
 import { TransportFees } from '../models/transport_fees.models.js'
 import { getCurrentSchoolSession } from "../utils/CurrentSession.js";
 import { SpecialDiscount } from "../models/special_discount.models.js";
+import { CreateActivity } from "../utils/Activity.js";
 
 const addTransportRoute = asyncHandler(async (req, res) => {
     var session = await getCurrentSchoolSession()
@@ -52,6 +53,10 @@ const addTransportRoute = asyncHandler(async (req, res) => {
     if (!saveVehicle || !addRoute || !addTransportFees) {
         throw new ApiError(500, "Server Not Working Properly")
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Create', `Transport Route added for Vehicle No ${vehicle_number}`)
 
     return res
         .status(200)
@@ -217,6 +222,10 @@ const updateTransportRoute = asyncHandler(async (req, res) => {
 
     }
 
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Update', `Transport Details Updated for Vehicle No ${vehicle_number}`)
+
     return res
         .status(200)
         .json(
@@ -303,6 +312,10 @@ const addStudentToBus = asyncHandler(async (req, res) => {
     studentIdCheck.vehicle_number = vehicle_number
     studentIdCheck.save({ validateBeforeSave: false })
 
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Add', `Student ${student_id} added to Bus ${vehicle_number}`)
+
 
     return res
         .status(200)
@@ -359,6 +372,10 @@ const removeStudentFromBus = asyncHandler(async (req, res) => {
         }
     )
 
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Removal', `Student ${student_id} Removed from Bus ${vehicle_number}`)
+
     return res
         .status(200)
         .json(
@@ -390,6 +407,10 @@ const changeVehicleStatus = asyncHandler(async (req, res) => {
     if (!updateStatus.acknowledged) {
         throw new ApiError(500, "Server Not Working")
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Changed', `${vehicle_number} status changed to ${status}`)
 
     return res
         .status(200)
@@ -564,7 +585,6 @@ const updateFromPrevious = asyncHandler(async (req, res) => {
             throw new ApiError(500, 'Server Not Working Properly in vehicles')
         }
     }
-    console.log('Vehicles Updated')
 
     for (const history of transportationHistory) {
         if (history.transport_opted[history.transport_opted?.length - 1] === true) {
@@ -594,6 +614,10 @@ const updateFromPrevious = asyncHandler(async (req, res) => {
             throw new ApiError(500, 'Server Not Working Properly in transport fees')
         }
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id,type,'Bulk Updation','Bulk Transport Upadtion Done')
 
     return res
         .status(200)

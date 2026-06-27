@@ -7,6 +7,7 @@ import { Payment } from "../models/payments.models.js";
 import { SpecialDiscount } from "../models/special_discount.models.js";
 import { Student } from "../models/students.models.js";
 import { TransportationHistory } from "../models/transportation_history.models.js";
+import { CreateActivity } from "../utils/Activity.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
@@ -43,6 +44,10 @@ const setupFees = asyncHandler(async (req, res) => {
     if (!saveFees) {
         throw new ApiError(500, 'Server Error')
     }
+
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Create', `Fees setup done for class ${grade}`)
 
     return res
         .status(200)
@@ -108,6 +113,10 @@ const editFeesStructure = asyncHandler(async (req, res) => {
         throw new ApiError(500, 'Server Error')
     }
 
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Update', `Fees Structure  updated for class ${grade}`)
+
     return res
         .status(200)
         .json(
@@ -147,6 +156,10 @@ const createFeeModule = asyncHandler(async (req, res) => {
     if (!createModule) {
         throw new ApiError(500, 'Module creation error')
     }
+
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Creation', `Fee Module created for ${student_id}`)
 
     return res
         .status(200)
@@ -222,6 +235,10 @@ const updateFeeModule = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Fee Module not found")
     }
 
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Updation', `Fee Update for student ${student_id}`)
+
     return res
         .status(200)
         .json(
@@ -272,6 +289,10 @@ const addPenalty = asyncHandler(async (req, res) => {
     if (!createPenalty) {
         throw new ApiError(500, 'Penalty Not saved ')
     }
+
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(_id, type, 'Create', `Penalty Created for Student ${student_id}`)
 
     return res
         .status(200)
@@ -518,6 +539,9 @@ const makePayment = asyncHandler(async (req, res) => {
         findStudent.save()
     }
 
+    const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    await CreateActivity(_id, type, 'Payment', `Payment done for Student ${student_id}`)
+
     return res
         .status(200)
         .json(
@@ -682,6 +706,10 @@ const cancelSlip = asyncHandler(async (req, res) => {
 
         const findStudent = await Student.updateOne({ student_id, session }, { status: 'Inactive' })
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Cancellation', description)
 
     return res
         .status(200)
