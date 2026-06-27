@@ -41,14 +41,26 @@ const TeacherSchema = new Schema({
         required: true,
         unique: true
     },
-    class: {
-        type: String,
-        required: true,
+    classTeacher: {
+        alloted: {
+            type: Boolean,
+            required: true,
+        },
+        class: {
+            type: String,
+        },
     },
-    type: {
+    qualification: {
         type: String,
-        required: true,
     },
+    subjects: [{
+        subjectName: {
+            type: String,
+        },
+        classes: {
+            type: String,
+        }
+    }],
     refreshToken: {
         type: String,
     }

@@ -484,6 +484,40 @@ const makePayment = asyncHandler(async (req, res) => {
         throw new ApiError(500, 'Server Error')
     }
 
+    // Extract monthCode from paid_till_month (e.g. "0 Due in April_04" → 4)
+    const paidTillMonthCode = parseInt(paid_till_month.split('_')[1])
+
+    // Parse fees_breakout and check for OpeningBalance
+    const parsedBreakout = JSON.parse(fees_breakout)
+    const hasOpeningBalance = parsedBreakout.hasOwnProperty('OpeningBalance')
+
+    // Build $set object conditionally
+    const updateFields = {
+        "feeModule.$[elem].paidStatus": true,
+    }
+
+    if (hasOpeningBalance) {
+        updateFields["closingBalance.paid"] = "Yes"
+        await ClosingBalance.updateOne({ student_id, session }, { paid: false })
+    }
+
+    // Update FeeModule
+    await FeeModule.updateOne(
+        { student_id, session },
+        { $set: updateFields },
+        {
+            arrayFilters: [{ "elem.monthCode": { $lte: paidTillMonthCode } }]
+        }
+    )
+
+    const findStudent = await Student.findOne({ student_id, session })
+
+    const findPayments = await Payment.find({ student_id, session, status: 'Active' })
+    if (findPayments.length === 0) {
+        findStudent.status = 'Active'
+        findStudent.save()
+    }
+
     return res
         .status(200)
         .json(
@@ -590,6 +624,65 @@ const cancelSlip = asyncHandler(async (req, res) => {
     findReceipt.status = 'Cancelled'
     findReceipt.save()
 
+    // Extract monthCode from the receipt's paid_till_month
+    const paidTillMonthCode = parseInt(findReceipt.paid_till_month.split('_')[1])
+
+    // Get current session
+    const session = await getCurrentSchoolSession()
+
+    // Find second last active receipt
+    const secondLastReceipt = await Payment.findOne({
+        student_id,
+        session,
+        _id: { $ne: findReceipt._id },
+        status: 'Active'
+    }).sort({ dateOBJ: -1 }).limit(1)
+
+    // Build $set object
+    const updateFields = {}
+
+    if (secondLastReceipt) {
+        // Mark months AFTER second last receipt's paid_till_month as false
+        const secondLastMonthCode = parseInt(secondLastReceipt.paid_till_month.split('_')[1])
+
+        updateFields["feeModule.$[elem].paidStatus"] = false
+
+        // Handle closingBalance
+        const parsedBreakout = JSON.parse(findReceipt.fees_breakout)
+        const hasOpeningBalance = parsedBreakout.hasOwnProperty('OpeningBalance')
+        if (hasOpeningBalance) {
+            updateFields["closingBalance.paid"] = "No"
+        }
+
+        await FeeModule.updateOne(
+            { student_id, session },
+            { $set: updateFields },
+            {
+                arrayFilters: [{ "elem.monthCode": { $gt: secondLastMonthCode } }]
+            }
+        )
+
+    } else {
+        // No other receipts — mark ALL months as false
+        updateFields["feeModule.$[elem].paidStatus"] = false
+
+        const parsedBreakout = JSON.parse(findReceipt.fees_breakout)
+        const hasOpeningBalance = parsedBreakout.hasOwnProperty('OpeningBalance')
+        if (hasOpeningBalance) {
+            updateFields["closingBalance.paid"] = "No"
+        }
+
+        await FeeModule.updateOne(
+            { student_id, session },
+            { $set: updateFields },
+            {
+                arrayFilters: [{ "elem.monthCode": { $gt: 0 } }]
+            }
+        )
+
+        const findStudent = await Student.updateOne({ student_id, session }, { status: 'Inactive' })
+    }
+
     return res
         .status(200)
         .json(
@@ -681,23 +774,25 @@ const fetchCancelledSlips = asyncHandler(async (req, res) => {
 })
 
 const transitReceipts = asyncHandler(async (req, res) => {
-    const receipts = await Payment.find();
+    // const receipts = await Payment.find();
 
-    let counter = 1;
+    // let counter = 1;
 
-    for (const receipt of receipts) {
-        receipt.status = 'Active';
-        receipt.user = 'System Software';
+    // for (const receipt of receipts) {
+    //     receipt.status = 'Active';
+    //     receipt.user = 'System Software';
 
-        if (receipt.payment_date) {
-            receipt.dateOBJ = new Date(receipt.payment_date);
-        }
+    //     if (receipt.payment_date) {
+    //         receipt.dateOBJ = new Date(receipt.payment_date);
+    //     }
 
-        await receipt.save();
+    //     await receipt.save();
 
-        console.log(`Updated ${counter}`);
-        counter++;
-    }
+    //     console.log(`Updated ${counter}`);
+    //     counter++;
+    // }
+
+
 })
 
 const monthlyReport = asyncHandler(async (req, res) => {

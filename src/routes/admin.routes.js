@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { LoginUser, TeacherLogin, changePassword, changeTeacherPassword, createUser, getActivity, getActivityRange, getUserById, getUserDetails, logoutUser, refreshAccessToken, removeUser, searchQuery, updateBulkTeacher, updateUser } from "../controllers/admin.controllers.js";
+import { LoginUser, TeacherLogin, changePassword, changeTeacherPassword, createUser, getActivity, getActivityRange, getUserById, getUserDetails, logoutUser, refreshAccessToken, removeUser, searchQuery, teacherLogout, updateUser } from "../controllers/admin.controllers.js";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js";
 
 const router = Router()
@@ -27,9 +27,8 @@ router.route('/employeeLogout').post(employeeVerifyJWT, logoutUser)
 router.route('/empChangePassword').put(employeeVerifyJWT, changePassword)
 
 //Teacher Routes 
-router.route('/teacherLogout').post(teacherVerifyJWT, logoutUser)
+router.route('/teacherLogout').post(teacherVerifyJWT, teacherLogout)
 router.route('/teacher/changePassword').put(teacherVerifyJWT, changeTeacherPassword)
-router.route('/bulkTeacherUpdate').put(updateBulkTeacher)
 
 
 export default router;

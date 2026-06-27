@@ -265,6 +265,33 @@ const classImageList = asyncHandler(async (req, res) => {
 
 const updateImageOnCloud = asyncHandler(async (req, res) => {
 
+    const { student_id } = req.body
+
+    const photoLocalPath = req.file?.path
+
+    if (!student_id) throw new ApiError(400, "Student ID is required")
+
+    if (!photoLocalPath) throw new ApiError(400, "Photo is required")
+
+    const student = await Student.findOne({ student_id })
+    if (!student) throw new ApiError(404, "Student not found")
+
+    if (student.student_image) {
+        await removeFromCloudinary(student.student_image)
+    }
+
+    const uploaded = await uploadOnCloudinary(photoLocalPath)
+
+    if (!uploaded.secure_url) throw new ApiError(500, "Failed to upload photo to Cloudinary")
+
+    student.student_image = uploaded.secure_url
+    await student.save()
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, { student_image: uploaded.secure_url }, "Photo updated successfully")
+        )
 })
 
 const updateClassList = asyncHandler(async (req, res) => {

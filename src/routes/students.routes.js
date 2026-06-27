@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js";
 import { admissionReport, assignRollNo, classImageList, findStudentsQuery, findStudentWithId, getClassStrength, getNotPromotedList, newAddmission, previousStudentList, promoteStudents, studentReport, swiftSection, updateClassList, updateImageOnCloud, updateStudentDetails } from "../controllers/students.controllers.js";
+import { upload } from "../middlewares/multer.middlewares.js";
 
 const router = Router()
 
@@ -10,7 +11,7 @@ router.route('/admin/studentQuery').get(adminVerifyJWT, findStudentsQuery)
 router.route('/admin/studentDetails').get(adminVerifyJWT, findStudentWithId)
 router.route('/admin/studentUpdate').put(adminVerifyJWT, updateStudentDetails)
 router.route('/admin/getImageList').get(adminVerifyJWT, classImageList)
-router.route('/admin/imageUpload').put(adminVerifyJWT, updateImageOnCloud)
+router.route('/admin/imageUpload').put(adminVerifyJWT, upload.single('photo'), updateImageOnCloud)
 router.route('/admin/updateClass').put(adminVerifyJWT, updateClassList)
 router.route('/admin/assignRollNo').put(adminVerifyJWT, assignRollNo)
 router.route('/admin/classStrength').get(adminVerifyJWT, getClassStrength)
@@ -27,7 +28,7 @@ router.route('/employee/studentQuery').get(employeeVerifyJWT, findStudentsQuery)
 router.route('/employee/studentDetails').get(employeeVerifyJWT, findStudentWithId)
 router.route('/employee/studentUpdate').put(employeeVerifyJWT, updateStudentDetails)
 router.route('/employee/getImageList').get(employeeVerifyJWT, classImageList)
-router.route('/employee/imageUpload').put(employeeVerifyJWT, updateImageOnCloud)
+router.route('/employee/imageUpload').put(employeeVerifyJWT, upload.single('photo'), updateImageOnCloud)
 router.route('/employee/updateClass').put(employeeVerifyJWT, updateClassList)
 router.route('/employee/assignRollNo').put(employeeVerifyJWT, assignRollNo)
 router.route('/employee/classStrength').get(employeeVerifyJWT, getClassStrength)

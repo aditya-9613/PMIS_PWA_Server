@@ -525,59 +525,6 @@ const changeTeacherPassword = asyncHandler(async (req, res) => {
         )
 })
 
-const updateBulkTeacher = asyncHandler(async (req, res) => {
-    const { json } = req.body
-
-    if (json.length === 0) {
-        throw new ApiError(400, 'Empty array')
-    }
-    var v = 1;
-
-    for (const teacher of json) {
-        const createTeacher = await Teacher.create({
-            email: teacher.email,
-            name: teacher.name,
-            password: teacher.password,
-            mobile: teacher.mobile,
-            dob: parseDOBToIST(teacher.dob),
-            status: teacher.status,
-            address: teacher.address,
-            gender: teacher.gender,
-            adharNumber: teacher.adharNumber,
-            class: teacher.class,
-            type: teacher.type
-        })
-
-        if (createTeacher) {
-            console.log('Teacher Update Count', v)
-            v++
-        } else {
-            throw new ApiError(500, 'Server Error')
-        }
-    }
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(200, {}, 'Teacher Data Updated ')
-        )
-})
-
-function parseDOBToIST(dob) {
-    const parts = dob.split(/[-\/]/);
-
-    if (parts.length !== 3) {
-        throw new Error('Invalid date format. Expected DD-MM-YYYY or DD/MM/YYYY');
-    }
-
-    const [day, month, year] = parts.map(Number);
-
-    if (isNaN(day) || isNaN(month) || isNaN(year)) {
-        throw new Error('Invalid date values');
-    }
-
-    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
-}
-
 export {
     refreshAccessToken,
     createUser,
@@ -594,5 +541,4 @@ export {
     updateUser,
     changePassword,
     changeTeacherPassword,
-    updateBulkTeacher
 }

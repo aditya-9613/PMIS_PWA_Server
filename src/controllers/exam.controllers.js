@@ -1131,6 +1131,22 @@ const getAttendanceTime = asyncHandler(async (req, res) => {
         )
 })
 
+const createImportant = asyncHandler(async (req, res) => {
+    const { attendanceTime } = req.body
+    var session = await getCurrentSchoolSession()
+
+    const create = await Important.create({
+        attendanceTime,
+        session
+    })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, {}, 'Attendance Time Set')
+        )
+})
+
 export {
     defineExam,
     getExams,
@@ -1149,4 +1165,5 @@ export {
     saveTotalAttendance,
     updateAttendanceTime,
     getAttendanceTime,
+    createImportant
 }
