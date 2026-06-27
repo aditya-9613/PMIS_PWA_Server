@@ -7,6 +7,7 @@ import { TransportFees } from '../models/transport_fees.models.js'
 import { getCurrentSchoolSession } from "../utils/CurrentSession.js";
 import { SpecialDiscount } from "../models/special_discount.models.js";
 import { CreateActivity } from "../utils/Activity.js";
+import { FeeModule } from "../models/feeModule.models.js";
 
 const addTransportRoute = asyncHandler(async (req, res) => {
     var session = await getCurrentSchoolSession()
@@ -312,6 +313,35 @@ const addStudentToBus = asyncHandler(async (req, res) => {
     studentIdCheck.vehicle_number = vehicle_number
     studentIdCheck.save({ validateBeforeSave: false })
 
+    const feeModule = await FeeModule.findOne({ student_id, session })
+
+    if (!feeModule) {
+        throw new ApiError(404, `Fee module not found for student ${student_id}`)
+    }
+
+    const transportAmount = amount?.amount || 0
+    const currentMonth = Number(new Date().getMonth() + 1)  // 1-12
+
+    // Update transportFees for current month onwards only (no backfill)
+    const updatedFeeModule = feeModule.feeModule.map((entry) => {
+        const mc = entry.monthCode
+
+        // April(4)→Dec(12): update if monthCode >= currentMonth
+        // Jan(1)→Mar(3):    always update (they're always "future" in session)
+        const isFuture = mc >= 4
+            ? mc >= currentMonth
+            : true
+
+        return isFuture
+            ? { ...entry._doc, transportFees: transportAmount }
+            : entry
+    })
+
+    await FeeModule.updateOne(
+        { student_id, session },
+        { $set: { feeModule: updatedFeeModule } }
+    )
+
     const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
     const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
     await CreateActivity(user_id, type, 'Add', `Student ${student_id} added to Bus ${vehicle_number}`)
@@ -370,6 +400,32 @@ const removeStudentFromBus = asyncHandler(async (req, res) => {
                 transport_opted: false
             }
         }
+    )
+
+    const feeModule = await FeeModule.findOne({ student_id, session })
+
+    if (!feeModule) {
+        throw new ApiError(404, `Fee module not found for student ${student_id}`)
+    }
+
+    const currentMonth = Number(new Date().getMonth() + 1)
+
+    // Zero out transportFees from current month onwards (mirror of addStudentToBus)
+    const updatedFeeModule = feeModule.feeModule.map((entry) => {
+        const mc = entry.monthCode
+
+        const isFuture = mc >= 4
+            ? mc >= currentMonth
+            : true
+
+        return isFuture
+            ? { ...entry._doc, transportFees: 0 }
+            : entry
+    })
+
+    await FeeModule.updateOne(
+        { student_id, session },
+        { $set: { feeModule: updatedFeeModule } }
     )
 
     const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
@@ -617,7 +673,7 @@ const updateFromPrevious = asyncHandler(async (req, res) => {
 
     const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
     const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
-    await CreateActivity(user_id,type,'Bulk Updation','Bulk Transport Upadtion Done')
+    await CreateActivity(user_id, type, 'Bulk Updation', 'Bulk Transport Upadtion Done')
 
     return res
         .status(200)

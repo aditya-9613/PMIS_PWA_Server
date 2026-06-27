@@ -124,6 +124,99 @@ const editFeesStructure = asyncHandler(async (req, res) => {
         )
 })
 
+const setupFeeModule = asyncHandler(async (req, res) => {
+    const { student_id} = req.body
+
+    if (!student_id) {
+        throw new ApiError(400, 'Required fields')
+    }
+
+    const session = await getCurrentSchoolSession()
+
+    // ── 1. Validate student ──────────────────────────────────────────────────
+    const student = await Student.findOne({ student_id })
+
+    if (!student) {
+        throw new ApiError(404, 'Student not found')
+    }
+
+    if (student.status === 'Suspended') {
+        throw new ApiError(400, 'Student status is Suspended')
+    }
+
+    // ── 2. Prevent duplicate setup ───────────────────────────────────────────
+    const existingModule = await FeeModule.findOne({ student_id, session })
+
+    if (existingModule) {
+        throw new ApiError(409, 'Fee module already set up for this student in the current session')
+    }
+
+    // ── 3. Fetch fee structure ───────────────────────────────────────────────
+    const feeStructure = await FeeStructure.findOne({ grade: student.grade, session })
+
+    if (!feeStructure) {
+        throw new ApiError(404, `No fee structure defined for grade ${student.grade} in session ${session}`)
+    }
+
+    const MONTHS = [
+        { monthName: 'April', monthCode: 4 },
+        { monthName: 'May', monthCode: 5 },
+        { monthName: 'June', monthCode: 6 },
+        { monthName: 'July', monthCode: 7 },
+        { monthName: 'August', monthCode: 8 },
+        { monthName: 'September', monthCode: 9 },
+        { monthName: 'October', monthCode: 10 },
+        { monthName: 'November', monthCode: 11 },
+        { monthName: 'December', monthCode: 12 },
+        { monthName: 'January', monthCode: 1 },
+        { monthName: 'February', monthCode: 2 },
+        { monthName: 'March', monthCode: 3 },
+    ]
+
+    const EXAM_FEE_MONTHS = [8, 12]   // August, December
+    const ADMISSION_MONTHS = [4]        // April only
+    const ANNUAL_MONTHS = [4]        // April only
+
+    const compositeFee = Number(feeStructure.fee_Amount) || 0
+    const admissionFees = Number(feeStructure.admissionFees) || 0
+    const annualCharges = Number(feeStructure.annualCharges) || 0
+    const examFees = Number(feeStructure.examFees) || 0
+    const registrationFees = Number(feeStructure.resgistrationFees) || 0   // typo preserved from DB
+
+    // ── 4. Build feeModule array (12 months) ─────────────────────────────────
+    const feeModule = MONTHS.map(({ monthName, monthCode }) => ({
+        monthName,
+        monthCode,
+        compositeFee,
+        transportFees: 0,
+        admissionFees: ADMISSION_MONTHS.includes(monthCode) ? admissionFees : 0,
+        annualCharges: ANNUAL_MONTHS.includes(monthCode) ? annualCharges : 0,
+        examFees: EXAM_FEE_MONTHS.includes(monthCode) ? examFees : 0,
+        penalty: 0,
+        paidStatus: false,
+    }))
+
+    const findClosingBalances = await ClosingBalance.findOne({ student_id, session })
+
+    // ── 5. Create & save ─────────────────────────────────────────────────────
+    const newFeeModule = await FeeModule.create({
+        student_id,
+        session,
+        closingBalance: {
+            amount: findClosingBalances?.closing_balance_amount || 0,
+            paid: findClosingBalances
+                ? (findClosingBalances.paid ? 'Yes' : 'No')
+                : 'Yes',
+        },
+        feeModule,
+        description: ' ',
+    })
+
+    return res.status(200).json(
+        new ApiResponse(200, newFeeModule, 'Fee module set up successfully')
+    )
+})
+
 const createFeeModule = asyncHandler(async (req, res) => {
     const { student_id, closingBalance, feeModule, description } = req.body
 
@@ -1400,6 +1493,7 @@ export {
     getFeesStructure,
     getClassFeeStructure,
     editFeesStructure,
+    setupFeeModule,
     createFeeModule,
     getFeeModule,
     updateFeeModule,
