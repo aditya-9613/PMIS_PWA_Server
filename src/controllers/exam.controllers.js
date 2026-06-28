@@ -9,6 +9,7 @@ import { ExamResult } from "../models/exam_result.models.js"
 import { Attendance } from "../models/attendance.models.js";
 import { DailyAttendance } from "../models/daily_attendance.model.js";
 import { Important } from "../models/important.model.js";
+import { CreateActivity } from "../utils/Activity.js";
 
 
 const defineExam = asyncHandler(async (req, res) => {
@@ -63,6 +64,9 @@ const defineExam = asyncHandler(async (req, res) => {
     if (!setExamsDate) {
         throw new ApiError(500, 'Server Error')
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    await CreateActivity(user_id, type, 'Create', `${exam_type} defined Exam by the User`)
 
     return res
         .status(200)
@@ -152,6 +156,10 @@ const scheduleExam = asyncHandler(async (req, res) => {
             }
         }
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Update', `Exam Scheduled which starts from ${start_date.toString()}`)
 
     return res
         .status(200)
@@ -367,6 +375,11 @@ const upsertExamMarks = asyncHandler(async (req, res) => {
             ? 'Marks Added Successfully'
             : 'Marks Updated Successfully'
 
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Update/Create', `Marks Updated for class ${grade}-${section} for exam ${exam_type}`)
+
     return res
         .status(200)
         .json(
@@ -487,6 +500,10 @@ const saveScholasticMarks = asyncHandler(async (req, res) => {
             });
         }
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Update', 'Scolastic marks Updated')
 
     return res
         .status(200)
@@ -930,6 +947,8 @@ const dailyAttendanceUpdates = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Attendance Data Required')
     }
 
+    let grade = `${attendanceArray[0].grade}-${attendanceArray[0].section}`
+
     await Promise.all(
         attendanceArray.map(async (record) => {
             //find if record exist for student for current session
@@ -972,6 +991,10 @@ const dailyAttendanceUpdates = asyncHandler(async (req, res) => {
             }
         })
     )
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Updated', `Attendance Updated for ${grade}`)
 
     return res
         .status(200)
@@ -1051,6 +1074,8 @@ const saveTotalAttendance = asyncHandler(async (req, res) => {
         return { ...record, percentage };
     });
 
+    let grade = `${attendanceList[0].grade}-${attendanceList[0].section}`
+
     const bulkOps = attendanceList.map(record => ({
         updateOne: {
             filter: {
@@ -1076,6 +1101,10 @@ const saveTotalAttendance = asyncHandler(async (req, res) => {
     if (bulkOps.length > 0) {
         await Attendance.bulkWrite(bulkOps);
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id, type, 'Update', `Total Attendace updated for ${grade}`)
 
     return res
         .status(200)
@@ -1108,6 +1137,10 @@ const updateAttendanceTime = asyncHandler(async (req, res) => {
         existingRecord.attendanceTime = newAttendanceTime;
         await existingRecord.save();
     }
+
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+    await CreateActivity(user_id,type,'Updated','Attendance time updated')
 
     return res
         .status(200)

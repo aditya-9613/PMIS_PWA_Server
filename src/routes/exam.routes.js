@@ -54,6 +54,6 @@ router.route('/teacher/getResultData').get(teacherVerifyJWT, getResultData)
 router.route('/teacher/dailyAttendance').post(teacherVerifyJWT, dailyAttendanceUpdates)
 router.route('/teacher/getAttendance').get(teacherVerifyJWT, getAttendanceRecords)
 router.route('/teacher/totalAttendance').post(teacherVerifyJWT, saveTotalAttendance)
-router.route('/teacher/getAttendanceTime').get(adminVerifyJWT, getAttendanceTime)
+router.route('/teacher/getAttendanceTime').get(teacherVerifyJWT, getAttendanceTime)
 
 export default router; 

@@ -4,6 +4,7 @@ import { Teacher } from "../models/teacher.models.js"
 import { ApiError } from "./ApiError.js"
 
 export const CreateActivity = async (user_id, type, activityType, description) => {
+    type = type.toLowerCase()
     try {
         let username = ''
         let name = ''

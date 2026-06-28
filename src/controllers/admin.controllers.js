@@ -230,7 +230,7 @@ const TeacherLogin = asyncHandler(async (req, res) => {
         sameSite: 'none'
     }
 
-    await CreateActivity(findTeacher._id, type, 'Login', 'User Logged In')
+    await CreateActivity(findTeacher._id, 'teacher', 'Login', 'User Logged In')
 
     return res
         .status(200)
@@ -541,13 +541,228 @@ const changeTeacherPassword = asyncHandler(async (req, res) => {
 
     const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
     const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
-    await CreateActivity(_id,type,'Update','Teacher Updated the Password')
+    await CreateActivity(_id, type, 'Update', 'Teacher Updated the Password')
 
     return res
         .status(200)
         .json(
             new ApiResponse(200, {}, 'Password Changed Successfully')
         )
+})
+
+const fetchProfile = asyncHandler(async (req, res) => {
+    const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
+    const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
+
+    let profile
+    if (type === 'admin' || type === 'employee') {
+        const fetchProfile = await Admin.findById(user_id).select('-password')
+        profile = fetchProfile
+    } else if (type === 'teacher') {
+        const fetchProfile = await Teacher.findById(user_id).select('-password')
+        profile = fetchProfile
+    }
+
+    if (!profile) {
+        throw new ApiError(404, 'Profile not found')
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, profile, 'Profile Details')
+        )
+})
+
+const profileUpdated = asyncHandler(async (req, res) => {
+    const { name, mobile, email, dob, gender, address, adharNumber, qualification } = req.body
+
+    if (!name || !mobile) {
+        throw new ApiError(400, 'Name and mobile are required.')
+    }
+
+    let updated
+
+    if (req.admin) {
+        // Admin or Employee — same Admin model
+        updated = await Admin.findByIdAndUpdate(
+            req.admin._id,
+            { $set: { name, mobile } },
+            { new: true, runValidators: true }
+        ).select('-password -refreshToken')
+
+    } else if (req.teacher) {
+        // Teacher — full profile fields
+        updated = await Teacher.findByIdAndUpdate(
+            req.teacher._id,
+            { $set: { name, email, mobile, dob, gender, address, adharNumber, qualification } },
+            { new: true, runValidators: true }
+        ).select('-password -refreshToken')
+    }
+
+    if (!updated) throw new ApiError(404, 'User not found.')
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, updated, 'Profile updated successfully.')
+        )
+})
+
+const createTeacher = asyncHandler(async (req, res) => {
+    const {
+        email, name, password, mobile, dob,
+        status, address, gender, adharNumber,
+        qualification, classTeacher, subjects
+    } = req.body
+
+    // ── Basic validation ──────────────────────────────────────────────────────
+    if (!email || !name || !password || !mobile || !dob || !status || !address || !gender || !adharNumber) {
+        throw new ApiError(400, 'All required fields must be provided.')
+    }
+
+    // ── Check duplicate email / mobile / aadhaar ──────────────────────────────
+    const existingTeacher = await Teacher.findOne({
+        $or: [{ email }, { mobile }, { adharNumber }]
+    })
+    if (existingTeacher) {
+        if (existingTeacher.email === email) throw new ApiError(409, 'A teacher with this email already exists.')
+        if (existingTeacher.mobile === mobile) throw new ApiError(409, 'A teacher with this mobile number already exists.')
+        if (existingTeacher.adharNumber === adharNumber) throw new ApiError(409, 'A teacher with this Aadhaar number already exists.')
+    }
+
+    // ── Class teacher conflict check ──────────────────────────────────────────
+    if (classTeacher?.alloted && classTeacher?.class) {
+        const classTeacherConflict = await Teacher.findOne({
+            status: 'Active',
+            'classTeacher.alloted': true,
+            'classTeacher.class': classTeacher.class
+        })
+        if (classTeacherConflict) {
+            throw new ApiError(409, `A class teacher is already assigned to class ${classTeacher.class}.`)
+        }
+    }
+
+    // ── Subject conflict check ────────────────────────────────────────────────
+    if (subjects?.length > 0) {
+        for (const sub of subjects) {
+            if (!sub.subjectName || !sub.classes) continue
+            const subjectConflict = await Teacher.findOne({
+                status: 'Active',
+                subjects: {
+                    $elemMatch: {
+                        subjectName: sub.subjectName,
+                        classes: sub.classes
+                    }
+                }
+            })
+            if (subjectConflict) {
+                throw new ApiError(409, `${sub.subjectName} is already assigned to another teacher for class ${sub.classes}.`)
+            }
+        }
+    }
+
+    // ── Create teacher ────────────────────────────────────────────────────────
+    const teacher = await Teacher.create({
+        email, name, password, mobile, dob,
+        status, address, gender, adharNumber,
+        qualification: qualification || '',
+        classTeacher: classTeacher || { alloted: false },
+        subjects: subjects || []
+    })
+
+    const created = await Teacher.findById(teacher._id).select('-password -refreshToken')
+
+    return res.status(201).json(new ApiResponse(201, created, 'Teacher created successfully.'))
+})
+
+const updateTeacher = asyncHandler(async (req, res) => {
+    const { id } = req.params
+    const { status, classTeacher, subjects } = req.body
+
+    // ── Check teacher exists ──────────────────────────────────────────────────
+    const teacher = await Teacher.findById(id)
+    if (!teacher) {
+        throw new ApiError(404, 'Teacher not found.')
+    }
+
+    // ── At least one field required ───────────────────────────────────────────
+    if (status === undefined && classTeacher === undefined && subjects === undefined) {
+        throw new ApiError(400, 'At least one field (status, classTeacher, subjects) must be provided.')
+    }
+
+    const updatePayload = {}
+
+    // ── Status update ─────────────────────────────────────────────────────────
+    if (status !== undefined) {
+        updatePayload.status = status
+    }
+
+    // ── Determine effective status for conflict checks ─────────────────────────
+    // If status is being changed in this same request, use the incoming value,
+    // otherwise fall back to the teacher's current status in DB
+    const effectiveStatus = status !== undefined ? status : teacher.status
+
+    // ── Class teacher conflict check ──────────────────────────────────────────
+    if (classTeacher !== undefined) {
+        if (classTeacher?.alloted && classTeacher?.class) {
+
+            // Only check conflict if the teacher will be Active after this update
+            if (effectiveStatus === 'Active') {
+                const classTeacherConflict = await Teacher.findOne({
+                    _id: { $ne: id },
+                    status: 'Active',
+                    'classTeacher.alloted': true,
+                    'classTeacher.class': classTeacher.class
+                })
+                if (classTeacherConflict) {
+                    throw new ApiError(409, `A class teacher is already assigned to class ${classTeacher.class}.`)
+                }
+            }
+        }
+
+        updatePayload.classTeacher = classTeacher?.alloted
+            ? { alloted: true, class: classTeacher.class }
+            : { alloted: false }
+    }
+
+    // ── Subject conflict check ────────────────────────────────────────────────
+    if (subjects !== undefined) {
+        if (!Array.isArray(subjects)) {
+            throw new ApiError(400, 'Subjects must be an array.')
+        }
+
+        // Only check conflict if the teacher will be Active after this update
+        if (effectiveStatus === 'Active') {
+            for (const sub of subjects) {
+                if (!sub.subjectName || !sub.classes) continue
+                const subjectConflict = await Teacher.findOne({
+                    _id: { $ne: id },
+                    status: 'Active',
+                    subjects: {
+                        $elemMatch: {
+                            subjectName: sub.subjectName,
+                            classes: sub.classes
+                        }
+                    }
+                })
+                if (subjectConflict) {
+                    throw new ApiError(409, `${sub.subjectName} is already assigned to another teacher for class ${sub.classes}.`)
+                }
+            }
+        }
+
+        updatePayload.subjects = subjects
+    }
+
+    // ── Apply update ──────────────────────────────────────────────────────────
+    const updated = await Teacher.findByIdAndUpdate(
+        id,
+        { $set: updatePayload },
+        { new: true, runValidators: true }
+    ).select('-password -refreshToken')
+
+    return res.status(200).json(new ApiResponse(200, updated, 'Teacher updated successfully.'))
 })
 
 export {
@@ -566,4 +781,8 @@ export {
     updateUser,
     changePassword,
     changeTeacherPassword,
+    fetchProfile,
+    profileUpdated,
+    createTeacher,
+    updateTeacher
 }
