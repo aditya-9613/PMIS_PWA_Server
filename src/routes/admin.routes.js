@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { LoginUser, TeacherLogin, changePassword, changeTeacherPassword, createUser, fetchProfile, getActivity, getActivityRange, getUserById, getUserDetails, logoutUser, profileUpdated, refreshAccessToken, removeUser, searchQuery, teacherLogout, updateUser } from "../controllers/admin.controllers.js";
+import { LoginUser, TeacherLogin, changePassword, changeTeacherPassword, createTeacher, createUser, fetchProfile, getActivity, getActivityRange, getUserById, getUserDetails, logoutUser, profileUpdated, refreshAccessToken, removeUser, searchQuery, teacherLogout, updateTeacher, updateUser } from "../controllers/admin.controllers.js";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js";
 
 const router = Router()
@@ -21,6 +21,8 @@ router.route('/changePassword').put(adminVerifyJWT, changePassword)
 router.route('/getActivityRange').get(adminVerifyJWT, getActivityRange)
 router.route('/fetchProfile').get(adminVerifyJWT, fetchProfile)
 router.route('/updatProfile').put(adminVerifyJWT, profileUpdated)
+router.route('/createTeacher').post(adminVerifyJWT, createTeacher)
+router.route('/updateTeacher').post(adminVerifyJWT, updateTeacher)
 
 //Employee Routes
 router.route('/getEmployee').get(employeeVerifyJWT, getUserDetails)

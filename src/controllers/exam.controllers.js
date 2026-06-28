@@ -1140,7 +1140,7 @@ const updateAttendanceTime = asyncHandler(async (req, res) => {
 
     const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
     const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
-    await CreateActivity(user_id,type,'Updated','Attendance time updated')
+    await CreateActivity(user_id, type, 'Updated', 'Attendance time updated')
 
     return res
         .status(200)
@@ -1164,6 +1164,133 @@ const getAttendanceTime = asyncHandler(async (req, res) => {
         )
 })
 
+const getPreviousResult = asyncHandler(async (req, res) => {
+    const { student_id, session } = req.query
+
+    if (
+        [student_id, session].some((item) => item?.trim() === "")
+    ) {
+        throw new ApiError(400, 'Required Fields')
+    }
+
+    const result = await Student.aggregate([
+        {
+            $match: {
+                student_id: student_id
+            }
+        },
+
+        // Filtered lookup: only current session exam results
+        {
+            $lookup: {
+                from: 'examresults',
+                let: { sid: '$student_id' },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $and: [
+                                    { $eq: ['$student_id', '$$sid'] },
+                                    { $eq: ['$session', session] }   // ← filter by session
+                                ]
+                            }
+                        }
+                    }
+                ],
+                as: 'exam_results'
+            }
+        },
+
+        // Parent lookup (one-to-one, safe to unwind)
+        {
+            $lookup: {
+                from: 'parents',
+                localField: 'parent_id',
+                foreignField: 'parent_id',
+                as: 'parent_details'
+            }
+        },
+
+        // Filtered lookup: attendance for this session
+        {
+            $lookup: {
+                from: 'attendances',
+                let: { sid: '$student_id' },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $and: [
+                                    { $eq: ['$student_id', '$$sid'] },
+                                    { $eq: ['$session', session] }
+                                ]
+                            }
+                        }
+                    }
+                ],
+                as: 'attendance'
+            }
+        },
+
+        // Filtered lookup: scholastic for this session/grade
+        {
+            $lookup: {
+                from: 'scholastics',
+                let: { sid: '$student_id' },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $and: [
+                                    { $eq: ['$student_id', '$$sid'] },
+                                    { $eq: ['$session', session] }
+                                ]
+                            }
+                        }
+                    }
+                ],
+                as: 'scholastic'
+            }
+        },
+
+        // Only unwind parent (1-to-1). Use $first for others to avoid row explosion.
+        { $unwind: { path: '$parent_details', preserveNullAndEmptyArrays: true } },
+
+        {
+            $project: {
+                student_id: 1,
+                name: 1,
+                session: session,
+                grade: { $arrayElemAt: ["$exam_results.grade", 0] },
+                section: { $arrayElemAt: ["$exam_results.section", 0] },
+                dob: 1,
+                roll_number: 1,
+                student_image: 1,
+
+                exam_results: 1,  // array — multiple exams per student
+
+                father_name: '$parent_details.father_name',
+                mother_name: '$parent_details.mother_name',
+
+                // Use $first since attendance/scholastic are now arrays
+                // but expected to have one record per session
+                attendance_present_days: '$attendance.present_days',
+                attendance_total_days: '$attendance.total_days',
+                attendance_percentage: '$attendance.percentage',
+
+                scholastic_subjects: '$scholastic.subjects',
+                scholastic_marks: '$scholastic.marks'
+            }
+        }
+    ])
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, result, 'Results')
+        )
+})
+
 export {
     defineExam,
     getExams,
@@ -1182,4 +1309,5 @@ export {
     saveTotalAttendance,
     updateAttendanceTime,
     getAttendanceTime,
+    getPreviousResult
 }

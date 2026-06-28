@@ -331,22 +331,35 @@ const teacherLogout = asyncHandler(async (req, res) => {
 const searchQuery = asyncHandler(async (req, res) => {
     const { query } = req.query
 
-    if (!query || query === '') {
+    if (!query || query.trim() === '') {
         throw new ApiError(400, 'Query is required')
     }
 
-    const searchResults = await Admin.find({
-        $or: [
-            { username: { $regex: query, $options: 'i' } },
-            { name: { $regex: query, $options: 'i' } }
-        ],
-        userType: { $in: ['Employee', 'Teacher'] }
-    }).select('-password')
+    const searchRegex = { $regex: query.trim(), $options: 'i' }
+
+    const [adminResults, teacherResults] = await Promise.all([
+        Admin.find({
+            $or: [
+                { username: searchRegex },
+                { name: searchRegex }
+            ],
+            userType: { $in: ['Admin', 'Employee'] }
+        }).select('-password -refreshToken'),
+
+        Teacher.find({
+            $or: [
+                { name: searchRegex },
+                { email: searchRegex }
+            ]
+        }).select('-password -refreshToken')
+    ])
+
+    const results = [...adminResults, ...teacherResults]
 
     return res
         .status(200)
         .json(
-            new ApiResponse(200, { results: searchResults }, 'Search Results')
+            new ApiResponse(200, { results: results }, 'Search Results')
         )
 })
 
@@ -381,6 +394,10 @@ const removeUser = asyncHandler(async (req, res) => {
 
     if (!getUser) {
         throw new ApiError(404, 'User Data Missing')
+    }
+
+    if (getUser.name === 'Krishna Dutt Dwivedi') {
+        throw new ApiError(401, 'You are Not Authorised to Remove this User')
     }
 
     getUser.userStatus = 'terminated'
@@ -454,6 +471,10 @@ const updateUser = asyncHandler(async (req, res) => {
 
     if (!findUser) {
         throw new ApiError(404, 'User Not Found')
+    }
+
+    if (getUser.name === 'Krishna Dutt Dwivedi') {
+        throw new ApiError(401, 'You are Not Authorised to Remove this User')
     }
 
     findUser.username = username
@@ -677,8 +698,7 @@ const createTeacher = asyncHandler(async (req, res) => {
 })
 
 const updateTeacher = asyncHandler(async (req, res) => {
-    const { id } = req.params
-    const { status, classTeacher, subjects } = req.body
+    const { id, status, classTeacher, subjects } = req.body
 
     // ── Check teacher exists ──────────────────────────────────────────────────
     const teacher = await Teacher.findById(id)

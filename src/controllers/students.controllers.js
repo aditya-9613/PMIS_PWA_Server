@@ -1,5 +1,7 @@
 import { Parent } from "../models/parent.models.js";
 import { Student } from "../models/students.models.js";
+import { Attendance } from "../models/attendance.models.js";
+import { Payment } from "../models/payments.models.js";
 import { CreateActivity } from "../utils/Activity.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";

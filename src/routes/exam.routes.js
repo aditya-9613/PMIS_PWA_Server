@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js"
-import { defineExam, genrateAdmitCards, getExams, getSchedule, scheduleExam, upsertExamMarks, getExamMarks, saveScholasticMarks, getScholasticMarks, classTopper, getResultData, dailyAttendanceUpdates, getAttendanceRecords, saveTotalAttendance, updateAttendanceTime, getAttendanceTime } from "../controllers/exam.controllers.js";
+import { defineExam, genrateAdmitCards, getExams, getSchedule, scheduleExam, upsertExamMarks, getExamMarks, saveScholasticMarks, getScholasticMarks, classTopper, getResultData, dailyAttendanceUpdates, getAttendanceRecords, saveTotalAttendance, updateAttendanceTime, getAttendanceTime, getPreviousResult } from "../controllers/exam.controllers.js";
 
 const router = Router()
 
@@ -19,8 +19,9 @@ router.route('/admin/getResultData').get(adminVerifyJWT, getResultData)
 router.route('/admin/dailyAttendance').post(adminVerifyJWT, dailyAttendanceUpdates)
 router.route('/admin/getAttendance').get(adminVerifyJWT, getAttendanceRecords)
 router.route('/admin/totalAttendance').post(adminVerifyJWT, saveTotalAttendance)
-router.route('/admin/updateAttendanceTime').put(updateAttendanceTime)
+router.route('/admin/updateAttendanceTime').put(adminVerifyJWT, updateAttendanceTime)
 router.route('/admin/getAttendanceTime').get(adminVerifyJWT, getAttendanceTime)
+router.route('/admin/getPreviousResult').get(adminVerifyJWT, getPreviousResult)
 
 //Employee Routes
 router.route('/employee/defineExam').post(employeeVerifyJWT, defineExam)
@@ -37,7 +38,8 @@ router.route('/employee/getResultData').get(employeeVerifyJWT, getResultData)
 router.route('/employee/dailyAttendance').post(employeeVerifyJWT, dailyAttendanceUpdates)
 router.route('/employee/getAttendance').get(employeeVerifyJWT, getAttendanceRecords)
 router.route('/employee/totalAttendance').post(employeeVerifyJWT, saveTotalAttendance)
-router.route('/employee/getAttendanceTime').get(adminVerifyJWT, getAttendanceTime)
+router.route('/employee/getAttendanceTime').get(employeeVerifyJWT, getAttendanceTime)
+router.route('/employee/getPreviousResult').get(employeeVerifyJWT, getPreviousResult)
 
 //Teacher Routes
 router.route('/teacher/defineExam').post(teacherVerifyJWT, defineExam)
