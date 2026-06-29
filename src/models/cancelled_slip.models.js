@@ -33,6 +33,13 @@ const cancelledSlipSchema = new Schema({
     session: {
         type: String
     },
+    user:{
+        type:String,
+    },
+    dateOBJ:{
+        type:Date,
+        required:true,
+    }
 })
 
 

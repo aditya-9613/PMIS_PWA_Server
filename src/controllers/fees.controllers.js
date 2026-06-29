@@ -1,4 +1,5 @@
 import { Admin } from "../models/admin.models.js";
+import { CancelledSlip } from "../models/cancelled_slip.models.js";
 import { ClosingBalance } from "../models/closing_balance.models.js";
 import { Discount } from "../models/fee_discount.models.js";
 import { FeeModule } from "../models/feeModule.models.js";
@@ -638,7 +639,7 @@ const makePayment = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(
-            new ApiResponse(200, {}, 'Payment Done Successfully')
+            new ApiResponse(200, createPayment, 'Payment Done Successfully')
         )
 })
 
@@ -892,28 +893,6 @@ const fetchCancelledSlips = asyncHandler(async (req, res) => {
         .json(
             new ApiResponse(200, findSlips, 'Cancelled Slips')
         )
-})
-
-const transitReceipts = asyncHandler(async (req, res) => {
-    // const receipts = await Payment.find();
-
-    // let counter = 1;
-
-    // for (const receipt of receipts) {
-    //     receipt.status = 'Active';
-    //     receipt.user = 'System Software';
-
-    //     if (receipt.payment_date) {
-    //         receipt.dateOBJ = new Date(receipt.payment_date);
-    //     }
-
-    //     await receipt.save();
-
-    //     console.log(`Updated ${counter}`);
-    //     counter++;
-    // }
-
-
 })
 
 const monthlyReport = asyncHandler(async (req, res) => {
@@ -1555,7 +1534,6 @@ export {
     getReceipts,
     cancelSlip,
     fetchCancelledSlips,
-    transitReceipts,
     monthlyReport,
     defaultersList,
     feeRecords,

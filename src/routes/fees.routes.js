@@ -1,10 +1,9 @@
 import { Router } from "express";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js"
-import { addPenalty, cancelSlip, closingBalanceList, createFeeModule, dayBook, defaultersList, editFeesStructure, feeEstimate, feeRecords, fetchCancelledSlips, getClassFeeStructure, getFeeModule, getFeesStructure, getMonthlyRecords, getPenalty, getReceipts, headCollection, makePayment, monthlyReport, setupFeeModule, setupFees, studentFeeData, transitReceipts, updateFeeModule } from "../controllers/fees.controllers.js";
+import { addPenalty, cancelSlip, closingBalanceList, createFeeModule, dayBook, defaultersList, editFeesStructure, feeEstimate, feeRecords, fetchCancelledSlips, getClassFeeStructure, getFeeModule, getFeesStructure, getMonthlyRecords, getPenalty, getReceipts, headCollection, makePayment, monthlyReport, setupFeeModule, setupFees, studentFeeData, updateFeeModule } from "../controllers/fees.controllers.js";
 
 const router = Router()
 
-// router.route('/transformsDiscounts').get(transitReceipts)
 //Admin Routes
 router.route('/admin/setupFees').post(adminVerifyJWT, setupFees)
 router.route('/admin/getFeesStructure').get(adminVerifyJWT, getFeesStructure)
@@ -28,7 +27,7 @@ router.route('/admin/headCollection').get(adminVerifyJWT, headCollection)
 router.route('/admin/getFeeEstimate').get(adminVerifyJWT, feeEstimate)
 router.route('/admin/closingBalance').get(adminVerifyJWT, closingBalanceList)
 router.route('/admin/dayBook').get(adminVerifyJWT, dayBook)
-router.route('/admin/getMonthlyRecord').get(adminVerifyJWT,getMonthlyRecords)
+router.route('/admin/getMonthlyRecord').get(adminVerifyJWT, getMonthlyRecords)
 
 //Employee Routes
 router.route('/employee/getFeesStructure').get(employeeVerifyJWT, getFeesStructure)
