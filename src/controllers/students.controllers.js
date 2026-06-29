@@ -8,6 +8,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getCurrentSchoolSession } from "../utils/CurrentSession.js";
 import { StudentId } from "../utils/IDs.js";
+import { Teacher } from "../models/teacher.models.js";
 
 const newAddmission = asyncHandler(async (req, res) => {
     const { name, aapar_id_no, gender, category, student_email, student_contact, dob, parent_email, grade, section, mother_name, father_name, father_occupation, mother_occupation, father_qualification, mother_qualification, guardian_name, guradian_phone, mother_contact, father_contact, address, pincode, city, document_type, document_number, modeOfTransport, status, scholar_number, vehicle_number, session } = req.body
@@ -835,6 +836,65 @@ const studentReport = asyncHandler(async (req, res) => {
         )
 })
 
+const getAdmissionRecords = asyncHandler(async (req, res) => {
+    const today = new Date()
+    const currentYear = today.getFullYear()
+
+    // 5 years range: 4 years back to end of current year
+    const startDate = new Date(Date.UTC(currentYear - 4, 0, 1, 0, 0, 0, 0))       // Jan 1st, 4 years ago
+    const endDate = new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999))       // Dec 31st, current year
+
+    const records = await Student.aggregate([
+        {
+            $match: {
+                addmissionDate: { $gte: startDate, $lte: endDate },
+                status: { $ne: 'Suspended' }
+            }
+        },
+        {
+            $group: {
+                _id: { year: { $year: "$addmissionDate" } },
+                totalAdmissions: { $sum: 1 }
+            }
+        },
+        {
+            $sort: { "_id.year": 1 }
+        },
+        {
+            $project: {
+                _id: 0,
+                year: "$_id.year",
+                totalAdmissions: 1
+            }
+        }
+    ])
+
+    // Shape for frontend chart
+    const labels = records.map(r => String(r.year))
+    const data = records.map(r => r.totalAdmissions)
+
+    return res.status(200).json(new ApiResponse(200, { labels, data }, "Admission records fetched"))
+})
+
+const dashboardData = asyncHandler(async (req, res) => {
+    const [students, activeTeacher] = await Promise.all([
+        Student.find({ status: { $in: ['Active', 'Inactive'] } }),
+        Teacher.find({ status: 'Active' })
+    ])
+
+    const totalStudents = students.length
+    const activeStudents = students.filter(s => s.status === 'Active').length
+    const inactiveStudents = students.filter(s => s.status === 'Inactive').length
+    const activeTeachers = activeTeacher.length
+
+    return res.status(200).json(new ApiResponse(200, {
+        totalStudents,
+        activeStudents,
+        inactiveStudents,
+        activeTeachers
+    }, "Dashboard data fetched"))
+})
+
 export {
     newAddmission,
     findStudentsQuery,
@@ -850,5 +910,7 @@ export {
     swiftSection,
     admissionReport,
     previousStudentList,
-    studentReport
+    studentReport,
+    getAdmissionRecords,
+    dashboardData
 }

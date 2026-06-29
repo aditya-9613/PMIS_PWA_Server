@@ -125,7 +125,7 @@ const editFeesStructure = asyncHandler(async (req, res) => {
 })
 
 const setupFeeModule = asyncHandler(async (req, res) => {
-    const { student_id} = req.body
+    const { student_id } = req.body
 
     if (!student_id) {
         throw new ApiError(400, 'Required fields')
@@ -1487,6 +1487,57 @@ const dayBook = asyncHandler(async (req, res) => {
         )
 })
 
+const getMonthlyRecords = asyncHandler(async (req, res) => {
+    const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = today.getMonth()
+
+    const startMonth = month - 9
+    const startYear = year + Math.floor(startMonth / 12)
+    const normalizedStartMonth = ((startMonth % 12) + 12) % 12
+
+    const startDate = new Date(`${startYear}-${String(normalizedStartMonth + 1).padStart(2, '0')}-01T00:00:00.000Z`)
+    const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999))
+
+    const records = await Payment.aggregate([
+        {
+            $match: {
+                dateOBJ: { $gte: startDate, $lte: endDate },
+                status: 'Active'
+            }
+        },
+        {
+            $group: {
+                _id: {
+                    year: { $year: "$dateOBJ" },
+                    month: { $month: "$dateOBJ" }
+                },
+                totalAmount: { $sum: { $toDouble: "$amount" } },
+                totalReceipts: { $sum: 1 }
+            }
+        },
+        {
+            $sort: { "_id.year": 1, "_id.month": 1 }
+        },
+        {
+            $project: {
+                _id: 0,
+                year: "$_id.year",
+                month: "$_id.month",
+                totalAmount: 1,
+                totalReceipts: 1
+            }
+        }
+    ])
+
+    // Shape data for chart
+    const labels = records.map(r => `${MONTH_LABELS[r.month - 1]} ${r.year}`)
+    const data = records.map(r => parseFloat(r.totalAmount))
+
+    return res.status(200).json(new ApiResponse(200, { labels, data }, "Monthly records fetched"))
+})
 
 export {
     setupFees,
@@ -1511,5 +1562,6 @@ export {
     feeEstimate,
     headCollection,
     closingBalanceList,
-    dayBook
+    dayBook,
+    getMonthlyRecords
 }

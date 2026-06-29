@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js";
-import { admissionReport, assignRollNo, classImageList, findStudentsQuery, findStudentWithId, getClassStrength, getNotPromotedList, newAddmission, previousStudentList, promoteStudents, studentReport, swiftSection, updateClassList, updateImageOnCloud, updateStudentDetails } from "../controllers/students.controllers.js";
+import { admissionReport, assignRollNo, classImageList, dashboardData, findStudentsQuery, findStudentWithId, getAdmissionRecords, getClassStrength, getNotPromotedList, newAddmission, previousStudentList, promoteStudents, studentReport, swiftSection, updateClassList, updateImageOnCloud, updateStudentDetails } from "../controllers/students.controllers.js";
 import { upload } from "../middlewares/multer.middlewares.js";
 
 const router = Router()
@@ -21,6 +21,8 @@ router.route('/admin/swiftSection').put(adminVerifyJWT, swiftSection)
 router.route('/admin/admissionReport').get(adminVerifyJWT, admissionReport)
 router.route('/admin/previousStudentList').get(adminVerifyJWT, previousStudentList)
 router.route('/admin/studentReport').get(adminVerifyJWT, studentReport)
+router.route('/admin/getAdmissionRecords').get(adminVerifyJWT, getAdmissionRecords)
+router.route('/admin/getDashboardData').get(employeeVerifyJWT, dashboardData)
 
 //Employee Routes 
 router.route('/employee/newAdmission').post(employeeVerifyJWT, newAddmission)
@@ -38,6 +40,8 @@ router.route('/employee/swiftSection').put(employeeVerifyJWT, swiftSection)
 router.route('/employee/admissionReport').get(employeeVerifyJWT, admissionReport)
 router.route('/employee/previousStudentList').get(employeeVerifyJWT, previousStudentList)
 router.route('/employee/studentReport').get(employeeVerifyJWT, studentReport)
+router.route('/employee/getAdmissionRecords').get(employeeVerifyJWT, getAdmissionRecords)
+router.route('/employee/getDashboardData').get(employeeVerifyJWT, dashboardData)
 
 //Teacher Routes
 

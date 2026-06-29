@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js"
-import { addPenalty, cancelSlip, closingBalanceList, createFeeModule, dayBook, defaultersList, editFeesStructure, feeEstimate, feeRecords, fetchCancelledSlips, getClassFeeStructure, getFeeModule, getFeesStructure, getPenalty, getReceipts, headCollection, makePayment, monthlyReport, setupFeeModule, setupFees, studentFeeData, transitReceipts, updateFeeModule } from "../controllers/fees.controllers.js";
+import { addPenalty, cancelSlip, closingBalanceList, createFeeModule, dayBook, defaultersList, editFeesStructure, feeEstimate, feeRecords, fetchCancelledSlips, getClassFeeStructure, getFeeModule, getFeesStructure, getMonthlyRecords, getPenalty, getReceipts, headCollection, makePayment, monthlyReport, setupFeeModule, setupFees, studentFeeData, transitReceipts, updateFeeModule } from "../controllers/fees.controllers.js";
 
 const router = Router()
 
@@ -28,6 +28,7 @@ router.route('/admin/headCollection').get(adminVerifyJWT, headCollection)
 router.route('/admin/getFeeEstimate').get(adminVerifyJWT, feeEstimate)
 router.route('/admin/closingBalance').get(adminVerifyJWT, closingBalanceList)
 router.route('/admin/dayBook').get(adminVerifyJWT, dayBook)
+router.route('/admin/getMonthlyRecord').get(adminVerifyJWT,getMonthlyRecords)
 
 //Employee Routes
 router.route('/employee/getFeesStructure').get(employeeVerifyJWT, getFeesStructure)
@@ -47,5 +48,6 @@ router.route('/employee/headCollection').get(employeeVerifyJWT, headCollection)
 router.route('/employee/closingBalance').get(employeeVerifyJWT, closingBalanceList)
 router.route('/employee/getFeeEstimate').get(employeeVerifyJWT, feeEstimate)
 router.route('/employee/dayBook').get(employeeVerifyJWT, dayBook)
+router.route('/employee/getMonthlyRecord').get(employeeVerifyJWT, getMonthlyRecords)
 
 export default router; 
