@@ -877,8 +877,9 @@ const getAdmissionRecords = asyncHandler(async (req, res) => {
 })
 
 const dashboardData = asyncHandler(async (req, res) => {
+    const session = await getCurrentSchoolSession()
     const [students, activeTeacher] = await Promise.all([
-        Student.find({ status: { $in: ['Active', 'Inactive'] } }),
+        Student.find({ status: { $in: ['Active', 'Inactive'] } ,session}),
         Teacher.find({ status: 'Active' })
     ])
 

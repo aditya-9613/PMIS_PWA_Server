@@ -528,7 +528,7 @@ const studentFeeData = asyncHandler(async (req, res) => {
 
     const studentDetails = studentFeeDetails[0]
 
-    const previousPayments = await Payment.find({ student_id: student_id, session: session }).lean()
+    const previousPayments = await Payment.find({ student_id: student_id, session: session ,status:'Active'}).lean()
 
     const feeStructure = await FeeStructure.findOne({ grade: grade, session: session }).lean()
 
@@ -633,13 +633,66 @@ const makePayment = asyncHandler(async (req, res) => {
         findStudent.save()
     }
 
+    const paymentWithDetails = await Payment.aggregate([
+        {
+            $match: { _id: createPayment._id }
+        },
+        {
+            $lookup: {
+                from: "students",
+                localField: "student_id",
+                foreignField: "student_id",
+                as: "student_info"
+            }
+        },
+        {
+            $unwind: { path: "$student_info", preserveNullAndEmptyArrays: true }
+        },
+        {
+            $lookup: {
+                from: "parents",
+                localField: "student_info.parent_id",
+                foreignField: "parent_id",
+                as: "parent_info"
+            }
+        },
+        {
+            $unwind: { path: "$parent_info", preserveNullAndEmptyArrays: true }
+        },
+        {
+            $project: {
+                _id: 1,
+                student_id: 1,
+                receipt_no: 1,
+                amount: 1,
+                discount: 1,
+                paid_till_month: 1,
+                payment_date: 1,
+                fees_breakout: 1,
+                payment_method: 1,
+                session: 1,
+                status: 1,
+                user: 1,
+                dateOBJ: 1,
+                grade: 1,
+                section: 1,
+                name: "$student_info.name",
+                gender: "$student_info.gender",
+                category: "$student_info.category",
+                roll_number: "$student_info.roll_number",
+                father_name: "$parent_info.father_name",
+                father_contact: "$parent_info.father_contact"
+            }
+        }
+    ])
+
     const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
     await CreateActivity(_id, type, 'Payment', `Payment done for Student ${student_id}`)
 
     return res
         .status(200)
         .json(
-            new ApiResponse(200, createPayment, 'Payment Done Successfully')
+            new ApiResponse(200, paymentWithDetails[0], 'Payment Done Successfully')
         )
 })
 
