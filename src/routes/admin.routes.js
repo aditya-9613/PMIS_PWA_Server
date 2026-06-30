@@ -22,7 +22,7 @@ router.route('/getActivityRange').get(adminVerifyJWT, getActivityRange)
 router.route('/fetchProfile').get(adminVerifyJWT, fetchProfile)
 router.route('/updatProfile').put(adminVerifyJWT, profileUpdated)
 router.route('/createTeacher').post(adminVerifyJWT, createTeacher)
-router.route('/updateTeacher').post(adminVerifyJWT, updateTeacher)
+router.route('/updateTeacher').put(adminVerifyJWT, updateTeacher)
 
 //Employee Routes
 router.route('/getEmployee').get(employeeVerifyJWT, getUserDetails)
