@@ -553,7 +553,7 @@ const promoteStudents = asyncHandler(async (req, res) => {
 
     promotionList.forEach(async (item) => {
         stuArray.push(item.student_id)
-        const promoteStudent = await Student.updateOne({ student_id: item.student_id, status: 'Not-Promoted' }, { status: 'Inactive', grade: item.promote_to })
+        const promoteStudent = await Student.updateOne({ student_id: item.student_id, status: 'Not-Promoted' }, { status: 'Inactive', grade: item.promote_to, session: currentSession })
 
         if (!promoteStudent.acknowledged) {
             throw new ApiError(500, `Server Error at ${item.name}`)
@@ -879,7 +879,7 @@ const getAdmissionRecords = asyncHandler(async (req, res) => {
 const dashboardData = asyncHandler(async (req, res) => {
     const session = await getCurrentSchoolSession()
     const [students, activeTeacher] = await Promise.all([
-        Student.find({ status: { $in: ['Active', 'Inactive'] } ,session}),
+        Student.find({ status: { $in: ['Active', 'Inactive'] }, session }),
         Teacher.find({ status: 'Active' })
     ])
 
