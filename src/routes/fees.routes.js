@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js"
-import { addPenalty, cancelSlip, closingBalanceList, createFeeModule, dayBook, defaultersList, editFeesStructure, feeEstimate, feeRecords, fetchCancelledSlips, getClassFeeStructure, getFeeModule, getFeesStructure, getMonthlyRecords, getPenalty, getReceipts, headCollection, makePayment, monthlyReport, setupFeeModule, setupFees, studentFeeData, updateFeeModule } from "../controllers/fees.controllers.js";
+import { addPenalty, cancelSlip, closingBalanceList, createFeeModule, dayBook, defaultersList, editFeesStructure, feeEstimate, feeRecords, fetchCancelledSlips, financialRecords, getClassFeeStructure, getFeeModule, getFeesStructure, getMonthlyRecords, getPenalty, getReceipts, headCollection, makePayment, monthlyReport, previousDiscounts, setupFeeModule, setupFees, studentFeeData, updateFeeModule } from "../controllers/fees.controllers.js";
 
 const router = Router()
 
@@ -28,6 +28,8 @@ router.route('/admin/getFeeEstimate').get(adminVerifyJWT, feeEstimate)
 router.route('/admin/closingBalance').get(adminVerifyJWT, closingBalanceList)
 router.route('/admin/dayBook').get(adminVerifyJWT, dayBook)
 router.route('/admin/getMonthlyRecord').get(adminVerifyJWT, getMonthlyRecords)
+router.route('/admin/previousDiscounts').get(adminVerifyJWT, previousDiscounts)
+router.route('/admin/financialRecords').get(adminVerifyJWT, financialRecords)
 
 //Employee Routes
 router.route('/employee/getFeesStructure').get(employeeVerifyJWT, getFeesStructure)
@@ -48,5 +50,7 @@ router.route('/employee/closingBalance').get(employeeVerifyJWT, closingBalanceLi
 router.route('/employee/getFeeEstimate').get(employeeVerifyJWT, feeEstimate)
 router.route('/employee/dayBook').get(employeeVerifyJWT, dayBook)
 router.route('/employee/getMonthlyRecord').get(employeeVerifyJWT, getMonthlyRecords)
+router.route('/employee/previousDiscounts').get(employeeVerifyJWT, previousDiscounts)
+router.route('/employee/financialRecords').get(employeeVerifyJWT, financialRecords)
 
 export default router; 
