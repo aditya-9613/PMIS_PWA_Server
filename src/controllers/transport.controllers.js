@@ -480,7 +480,7 @@ const changeVehicleStatus = asyncHandler(async (req, res) => {
 const isStudentPresent = asyncHandler(async (req, res) => {
     var session = await getCurrentSchoolSession()
 
-    const { student_id } = req.body
+    const { student_id } = req.query
 
     if (student_id === "") {
         throw new ApiError(400, "Required Fields")
@@ -496,7 +496,7 @@ const isStudentPresent = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(
-            new ApiResponse(200, { isPresent: check }, "Student Presence Status")
+            new ApiResponse(200, { isPresent: check, findStudent }, "Student Presence Status")
         )
 })
 
