@@ -8,6 +8,8 @@ import { getCurrentSchoolSession } from "../utils/CurrentSession.js";
 import { SpecialDiscount } from "../models/special_discount.models.js";
 import { CreateActivity } from "../utils/Activity.js";
 import { FeeModule } from "../models/feeModule.models.js";
+import { Student } from "../models/students.models.js";
+import { TransportationHistory } from "../models/transportation_history.models.js";
 
 const addTransportRoute = asyncHandler(async (req, res) => {
     var session = await getCurrentSchoolSession()
