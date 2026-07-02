@@ -3,9 +3,12 @@ import cors from "cors"
 import cookieParser from "cookie-parser"
 import { ApiError } from "./utils/ApiError.js"
 import address from "address"
+// import mountPenalty from "./utils/cronJobs.js"
 
 
 const app = express()
+
+// mountPenalty()
 
 // Validate and configure CORS
 const configureCors = () => {
