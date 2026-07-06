@@ -1174,7 +1174,23 @@ const defaultersList = asyncHandler(async (req, res) => {
 
         // ── CASE 1: Last paid month is STRICTLY AHEAD of current month ──────
         if (lastPaidAcademicIndex > currentMonthAcademicIndex) {
-            total_due_amount = 0
+            const lastReceipt = await Payment.findOne({
+                student_id: student.student_id,
+                session,
+                status: 'Active'
+            }).sort({ dateOBJ: -1 })
+
+            let leftOverDue = 0
+
+            if (lastReceipt?.paid_till_month) {
+                const dueMonth = Number(lastReceipt.paid_till_month.split('_')[1])
+                if (dueMonth === Number(currentMonth)) {
+                    const leftOverRaw = String(lastReceipt.paid_till_month).split(' ')[0]
+                    leftOverDue = isNaN(Number(leftOverRaw)) ? 0 : Number(leftOverRaw)
+                }
+            }
+
+            total_due_amount = leftOverDue
         }
         // ── CASE 2: Last paid month is EQUAL TO or BEHIND current 
         else if (lastPaidMonth) {
@@ -1227,7 +1243,70 @@ const defaultersList = asyncHandler(async (req, res) => {
                     Number(m.penalty || 0)
             }, 0)
 
-            total_due_amount = totalFeeTillNow + closingDue
+            const lastReceipt = await Payment.findOne({
+                student_id: student.student_id,
+                session,
+                status: 'Active'
+            }).sort({ dateOBJ: -1 })
+
+            let leftOverDue = 0
+            if (lastReceipt?.paid_till_month) {
+                const leftOverRaw = String(lastReceipt.paid_till_month).split(' ')[0]
+                leftOverDue = isNaN(Number(leftOverRaw)) ? 0 : Number(leftOverRaw)
+            }
+
+            total_due_amount = totalFeeTillNow + closingDue + leftOverDue
+        }
+
+        //Paid months if transport is left then 
+        const allPayments = await Payment.find({ student_id: student.student_id, session: session })
+
+        let lastTransportPaid = null
+
+        for (const payment of allPayments) {
+            let fees_breakout = payment.fees_breakout
+            if (!fees_breakout) continue
+
+            if (typeof fees_breakout === 'string') {
+                try { fees_breakout = JSON.parse(fees_breakout) } catch { continue }
+            }
+
+            for (const key of Object.keys(fees_breakout)) {
+                // startsWith('TransportFees_') excludes 'TransportFeesOff_' (next char is 'O', not '_')
+                if (key.startsWith('TransportFees_')) {
+                    const code = Number(key.split('_')[1])
+                    if (
+                        lastTransportPaid === null ||
+                        ACADEMIC_ORDER.indexOf(code) > ACADEMIC_ORDER.indexOf(lastTransportPaid)
+                    ) {
+                        lastTransportPaid = code
+                    }
+                }
+            }
+        }
+
+        // Where to start the forward-walk:
+        //   transport never paid → start at April (index 0)
+        //   transport paid       → start at month AFTER last-paid transport
+        // paidStatus is composite-only: for composite-PAID months the reducers above
+        // skipped transport, so pick it up here. Stop at the first composite-UNPAID
+        // month (its transport was already counted by CASE 2/3).
+        const startIdx = lastTransportPaid === null
+            ? 0
+            : ACADEMIC_ORDER.indexOf(lastTransportPaid) + 1
+
+        for (let i = startIdx; i <= currentMonthAcademicIndex; i++) {
+            const monthCode = ACADEMIC_ORDER[i]
+            if (monthCode === 6) continue   // June: no transport
+
+            const monthObj = feeModuleMonths.find(m => m.monthCode === monthCode)
+            if (!monthObj) continue
+
+            if (monthObj.paidStatus === true) {
+                total_due_amount += Number(monthObj.transportFees || 0)
+            } else {
+                break   // composite unpaid → transport already counted, stop
+            }
         }
 
         outputArray.push({
