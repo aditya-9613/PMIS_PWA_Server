@@ -1220,7 +1220,7 @@ const defaultersList = asyncHandler(async (req, res) => {
             const totalFeeTillNow = monthsDueTillNow.reduce((sum, m) => {
                 return sum +
                     Number(m.compositeFee || 0) +
-                    Number(m.transportFees || 0) +
+                    (m.monthCode === 6 ? 0 : Number(m.transportFees || 0)) +
                     Number(m.admissionFees || 0) +
                     Number(m.annualCharges || 0) +
                     Number(m.examFees || 0) +
