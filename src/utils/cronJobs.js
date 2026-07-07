@@ -49,24 +49,22 @@ const penaltyController = async () => {
         for (let i = endIdx; i >= startIdx; i--) {
             const monthCode = MONTHS_SESSION_ORDER[i]
             const entry = feeModule.feeModule.find(m => m.monthCode === monthCode)
-            if (entry) {
+            if (entry && entry.compositeFee > 0) {
                 entry.penalty = counter * PENALTY_STEP
             }
             counter++
         }
 
-        console.log(student_id, feeModule)
-
         // await feeModule.save()
     }
 }
 
-const mountPenalty = async() => {
-
-    await penaltyController()
-    // cron.schedule("* * * * *", async () => {
-    //     await penaltyController()
-    // })
+const mountPenalty = async () => {
+    cron.schedule('30 1 1 * *', async () => {
+        await penaltyController()
+    }, {
+        timezone: 'Asia/Kolkata',
+    });
 }
 
 export default mountPenalty

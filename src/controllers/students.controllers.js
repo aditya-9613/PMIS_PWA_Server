@@ -56,7 +56,7 @@ const newAddmission = asyncHandler(async (req, res) => {
         roll_number: null,
         section: section,
         student_contact: student_contact || null,
-        addmissionDate: addmissionDate,
+        addmissionDate: addmissionDate || new Date(),
         dob: dob,
         status: status,
         address: address,
