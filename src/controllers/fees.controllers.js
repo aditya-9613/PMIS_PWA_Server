@@ -1259,7 +1259,7 @@ const defaultersList = asyncHandler(async (req, res) => {
         }
 
         //Paid months if transport is left then 
-        const allPayments = await Payment.find({ student_id: student.student_id, session: session })
+        const allPayments = await Payment.find({ student_id: student.student_id, session: session, status: 'Active' })
 
         let lastTransportPaid = null
 
