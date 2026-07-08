@@ -606,24 +606,35 @@ const makePayment = asyncHandler(async (req, res) => {
     const parsedBreakout = JSON.parse(fees_breakout)
     const hasOpeningBalance = parsedBreakout.hasOwnProperty('OpeningBalance')
 
-    // Build $set object conditionally
-    const updateFields = {
-        "feeModule.$[elem].paidStatus": true,
-    }
+    // Does this payment actually cover any composite/transport months?
+    const breakoutKeys = Object.keys(parsedBreakout)
+    const coversActualMonths = breakoutKeys.some(
+        key => key.startsWith('MonthlyFees_') || key.startsWith('TransportFees_')
+    )
+
+    const updateFields = {}
 
     if (hasOpeningBalance) {
         updateFields["closingBalance.paid"] = "Yes"
-        await ClosingBalance.updateOne({ student_id, session }, { paid: false })
+        await ClosingBalance.updateOne({ student_id, session }, { paid: true })
     }
 
-    // Update FeeModule
-    await FeeModule.updateOne(
-        { student_id, session },
-        { $set: updateFields },
-        {
-            arrayFilters: [{ "elem.monthCode": { $lte: paidTillMonthCode } }]
-        }
-    )
+    if (coversActualMonths) {
+        const paidTillMonthCode = parseInt(paid_till_month.split('_')[1])
+        updateFields["feeModule.$[elem].paidStatus"] = true
+
+        await FeeModule.updateOne(
+            { student_id, session },
+            { $set: updateFields },
+            { arrayFilters: [{ "elem.monthCode": { $lte: paidTillMonthCode } }] }
+        )
+    } else if (hasOpeningBalance) {
+        // closing-balance-only payment — update closingBalance flag only, no feeModule month changes
+        await FeeModule.updateOne(
+            { student_id, session },
+            { $set: { "closingBalance.paid": updateFields["closingBalance.paid"] } }
+        )
+    }
 
     const findStudent = await Student.findOne({ student_id, session })
 
