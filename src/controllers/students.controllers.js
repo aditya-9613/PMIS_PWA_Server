@@ -108,14 +108,42 @@ const findStudentsQuery = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Query Can Not Be Empty')
     }
 
-    const findStudent = await Student.find({
-        $or: [
-            { student_id: { $regex: query, $options: 'i' } },
-            { name: { $regex: query, $options: 'i' } },
-            { scholar_number: { $regex: query, $options: 'i' } },
-            { aapar_id_no: { $regex: query, $options: 'i' } }
-        ]
-    }).lean();
+    const findStudent = await Student.aggregate([
+        {
+            $match: {
+                $or: [
+                    { student_id: { $regex: query, $options: 'i' } },
+                    { name: { $regex: query, $options: 'i' } },
+                    { scholar_number: { $regex: query, $options: 'i' } },
+                    { aapar_id_no: { $regex: query, $options: 'i' } }
+                ]
+            }
+        },
+        {
+            $lookup: {
+                from: 'parents',              // actual MongoDB collection name for Parent model
+                localField: 'parent_id',
+                foreignField: 'parent_id',
+                as: 'parent'
+            }
+        },
+        {
+            $unwind: {
+                path: '$parent',
+                preserveNullAndEmptyArrays: true   // student still returned even if parent missing
+            }
+        },
+        {
+            $replaceRoot: {
+                newRoot: {
+                    $mergeObjects: ['$parent', '$$ROOT']   // student fields win on key clashes (e.g. __v)
+                }
+            }
+        },
+        {
+            $project: { parent: 0 }   // drop leftover nested parent key
+        }
+    ]);
 
     return res
         .status(200)

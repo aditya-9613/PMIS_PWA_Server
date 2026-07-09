@@ -159,6 +159,24 @@ const setupFeeModule = asyncHandler(async (req, res) => {
         throw new ApiError(404, `No fee structure defined for grade ${student.grade} in session ${session}`)
     }
 
+    const transport = await TransportationHistory.findOne({ student_id, session })
+
+    let transportAmount = 0
+
+    if (transport) {
+        if (transport.transport_opted[transport.transport_opted?.length - 1]) {
+            transportAmount = 500
+        }
+    }
+
+    const addmissionDate = new Date(student.addmissionDate)
+
+    let penaltyApplied = false
+
+    if (addmissionDate.getFullYear() !== 2026) {
+        penaltyApplied = true
+    }
+
     const MONTHS = [
         { monthName: 'April', monthCode: 4 },
         { monthName: 'May', monthCode: 5 },
@@ -189,13 +207,36 @@ const setupFeeModule = asyncHandler(async (req, res) => {
         monthName,
         monthCode,
         compositeFee,
-        transportFees: 0,
+        transportFees: monthCode === 6 ? 0 : transportAmount,
         admissionFees: ADMISSION_MONTHS.includes(monthCode) ? admissionFees : 0,
         annualCharges: ANNUAL_MONTHS.includes(monthCode) ? annualCharges : 0,
         examFees: EXAM_FEE_MONTHS.includes(monthCode) ? examFees : 0,
         penalty: 0,
         paidStatus: false,
     }))
+
+    const MONTHS_SESSION_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
+    const PENALTY_STEP = 50
+
+    if (penaltyApplied) {
+        const currentMonth = new Date().getMonth() + 1
+        const currentIdx = MONTHS_SESSION_ORDER.indexOf(currentMonth)
+
+        const startIdx = 0            // always default to April
+        const endIdx = currentIdx - 1 // month before current
+
+        if (startIdx <= endIdx) {
+            let counter = 1
+            for (let i = endIdx; i >= startIdx; i--) {
+                const monthCode = MONTHS_SESSION_ORDER[i]
+                const entry = feeModule.find(m => m.monthCode === monthCode)
+                if (entry && entry.compositeFee > 0) {
+                    entry.penalty = counter * PENALTY_STEP
+                }
+                counter++
+            }
+        }
+    }
 
     const findClosingBalances = await ClosingBalance.findOne({ student_id, session })
 
