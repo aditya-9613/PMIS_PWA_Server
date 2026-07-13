@@ -660,14 +660,19 @@ const makePayment = asyncHandler(async (req, res) => {
         await ClosingBalance.updateOne({ student_id, session }, { paid: true })
     }
 
+    const MONTHS_SESSION_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
+
     if (coversActualMonths) {
         const paidTillMonthCode = parseInt(paid_till_month.split('_')[1])
         updateFields["feeModule.$[elem].paidStatus"] = true
 
+        const paidTillIndex = MONTHS_SESSION_ORDER.indexOf(paidTillMonthCode)
+        const paidMonthCodes = MONTHS_SESSION_ORDER.slice(0, paidTillIndex + 1)
+
         await FeeModule.updateOne(
             { student_id, session },
             { $set: updateFields },
-            { arrayFilters: [{ "elem.monthCode": { $lte: paidTillMonthCode } }] }
+            { arrayFilters: [{ "elem.monthCode": { $in: paidMonthCodes } }] }
         )
     } else if (hasOpeningBalance) {
         // closing-balance-only payment — update closingBalance flag only, no feeModule month changes
