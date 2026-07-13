@@ -680,7 +680,7 @@ const makePayment = asyncHandler(async (req, res) => {
     const findStudent = await Student.findOne({ student_id, session })
 
     const findPayments = await Payment.find({ student_id, session, status: 'Active' })
-    if (findPayments.length === 0) {
+    if (findPayments.length >= 1) {
         findStudent.status = 'Active'
         findStudent.save()
     }
