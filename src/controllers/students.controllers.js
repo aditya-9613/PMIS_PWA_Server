@@ -814,9 +814,20 @@ const studentReport = asyncHandler(async (req, res) => {
         {
             $lookup: {
                 from: 'payments',
-                localField: 'student_id',
-                foreignField: 'student_id',
-                as: 'payment_info'
+                let: { studentId: "$student_id" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $and: [
+                                    { $eq: ["$student_id", "$$studentId"] },
+                                    { $eq: ["$status", "Active"] }
+                                ]
+                            }
+                        }
+                    }
+                ],
+                as: "payment_info"
             }
         },
         {
