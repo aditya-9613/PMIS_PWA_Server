@@ -9,6 +9,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { getCurrentSchoolSession } from "../utils/CurrentSession.js";
 import { StudentId } from "../utils/IDs.js";
 import { Teacher } from "../models/teacher.models.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { removeFromCloudinary } from "../utils/cloudinary.js";
 
 const newAddmission = asyncHandler(async (req, res) => {
     const { name, aapar_id_no, gender, category, student_email, student_contact, dob, parent_email, grade, section, mother_name, father_name, father_occupation, mother_occupation, father_qualification, mother_qualification, guardian_name, guradian_phone, mother_contact, father_contact, address, pincode, city, document_type, document_number, modeOfTransport, status, scholar_number, vehicle_number, session } = req.body

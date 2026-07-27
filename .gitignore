@@ -45,11 +45,9 @@ Thumbs.db
 
 # Temporary files
 tmp/
-temp/
 
 # Uploads (if storing files locally)
 uploads/
-public/uploads/
 
 # Database files (if using SQLite or similar)
 *.sqlite
