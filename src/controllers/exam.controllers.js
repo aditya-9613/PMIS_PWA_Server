@@ -214,10 +214,16 @@ const genrateAdmitCards = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Invalid date format');
     }
 
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
     const findPapers = await TimeTable.findOne({
-        grade: grade,
-        start_date: startDate,
-        end_date: endDate
+        grade,
+        start_date: { $lte: end },
+        end_date: { $gte: start }
     }).lean();
 
     if (!findPapers) {
