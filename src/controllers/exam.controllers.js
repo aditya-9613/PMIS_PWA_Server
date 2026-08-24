@@ -354,32 +354,38 @@ const upsertExamMarks = asyncHandler(async (req, res) => {
     }
 
     // ── Bulk Update ──────────────────────────────────────────────────────────────
+    let modifiedCount = 0
     if (toUpdate.length > 0) {
-        const bulkOps = toUpdate.map((item) => ({
-            updateOne: {
-                filter: { _id: item._id },
-                update: {
-                    $set: {
-                        subjects: item.subjects,
-                        marks: item.marks,
-                        maximumMarks: item.maximumMarks
-                    }
-                }
-            }
-        }))
+        const updateResults = await Promise.all(
+            toUpdate.map((item) =>
+                ExamResult.findByIdAndUpdate(
+                    item._id,
+                    {
+                        $set: {
+                            subjects: item.subjects,
+                            marks: item.marks,
+                            maximumMarks: item.maximumMarks
+                        }
+                    },
+                    { returnDocument: 'after', strict: false, runValidators: true }
+                )
+            )
+        )
 
-        const bulkResult = await ExamResult.bulkWrite(bulkOps)
+        modifiedCount = updateResults.filter(Boolean).length
 
-        if (!bulkResult.acknowledged) {
-            throw new ApiError(500, 'Marks update failed for one or more students')
+        if (modifiedCount !== toUpdate.length) {
+            throw new ApiError(500, `Only updated ${modifiedCount}/${toUpdate.length} student records — some IDs may be invalid`)
         }
     }
 
-    const action = toInsert.length > 0 && toUpdate.length > 0
-        ? 'Marks Saved & Updated Successfully'
+    const action = toInsert.length > 0 && modifiedCount > 0
+        ? `Marks Saved for ${toInsert.length} and Updated for ${modifiedCount} student(s)`
         : toInsert.length > 0
-            ? 'Marks Added Successfully'
-            : 'Marks Updated Successfully'
+            ? `Marks Added Successfully for ${toInsert.length} student(s)`
+            : modifiedCount > 0
+                ? `Marks Updated Successfully for ${modifiedCount} student(s)`
+                : 'No marks were changed'
 
 
     const user_id = req?.admin?._id || req?.employee?._id || req?.teacher?._id

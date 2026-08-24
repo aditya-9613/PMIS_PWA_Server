@@ -5,6 +5,7 @@ import { Course } from "../models/course.models.js"
 import { getCurrentSchoolSession } from '../utils/CurrentSession.js'
 import { createCourseID } from "../utils/IDs.js"
 import { Student } from "../models/students.models.js"
+import { CreateActivity } from "../utils/Activity.js"
 
 const createCourse = asyncHandler(async (req, res) => {
     var session = await getCurrentSchoolSession()
@@ -243,7 +244,7 @@ const updateCourseById = asyncHandler(async (req, res) => {
 
     const _id = req?.admin?._id || req?.employee?._id || req?.teacher?._id
     const type = req?.admin ? 'admin' : req?.teacher ? 'teacher' : req?.employee ? 'employee' : null
-    await CreateActivity(_id,type,'Update',`User Updated the course with course ID ${course_id}`)
+    await CreateActivity(_id, type, 'Update', `User Updated the course with course ID ${course_id}`)
 
     return res
         .status(200)
