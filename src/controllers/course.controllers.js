@@ -304,6 +304,27 @@ const getStudentWithSubjects = asyncHandler(async (req, res) => {
         }
     ]);
 
+    // Sort outside the pipeline: numeric roll numbers first (ascending),
+    // non-numeric roll numbers after them (alphabetically)
+    const isNumeric = (val) => /^[0-9]+$/.test(String(val ?? "").trim());
+
+    studentsWithCourseDetails.sort((a, b) => {
+        const aNumeric = isNumeric(a.roll_number);
+        const bNumeric = isNumeric(b.roll_number);
+
+        if (aNumeric && bNumeric) {
+            return Number(a.roll_number) - Number(b.roll_number);
+        }
+        if (aNumeric && !bNumeric) {
+            return -1; // numeric comes first
+        }
+        if (!aNumeric && bNumeric) {
+            return 1; // string comes after
+        }
+        // both non-numeric, sort alphabetically
+        return String(a.roll_number).localeCompare(String(b.roll_number));
+    });
+
     return res
         .status(200)
         .json(
