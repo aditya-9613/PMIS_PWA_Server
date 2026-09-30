@@ -504,11 +504,13 @@ const getStudentDetails = asyncHandler(async (req, res) => {
     const session = await getCurrentSchoolSession()
     const { vehicle_number } = req.query
 
-    if (vehicle_number === "") {
+    const currentMonth = new Date().getMonth() // 0 = Jan ... 7 = Aug
+    const baseTransportFee = (currentMonth >= 7 || currentMonth <= 2) ? 550 : 500
+
+    if (!vehicle_number) {
         throw new ApiError(400, "Required Fields")
     }
 
-    //const student_ids = await Vehicle.findOne({ vehicle_number: vehicle_number }, { _id: 0, student_id: 1 }).lean()
     const result = await Vehicle.aggregate([
         // Match the vehicle
         {
@@ -518,26 +520,44 @@ const getStudentDetails = asyncHandler(async (req, res) => {
             }
         },
 
-        // Unwind student_id array to get one document per student
+        // One document per student id (removes repeated ids inside the array)
         { $unwind: "$student_id" },
+        {
+            $group: {
+                _id: "$student_id",
+                vehicle_number: { $first: "$vehicle_number" }
+            }
+        },
 
-        // Lookup each student
+        // Lookup student (only one match allowed)
         {
             $lookup: {
                 from: "students",
-                localField: "student_id",
-                foreignField: "student_id",
+                let: { sId: "$_id" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: { $eq: ["$student_id", "$$sId"] }
+                            // If students has a session field, also filter by it:
+                            // , session: session
+                        }
+                    },
+                    { $limit: 1 }
+                ],
                 as: "student"
             }
         },
         { $unwind: "$student" },
 
-        // Lookup route info
+        // Lookup route (only one match allowed)
         {
             $lookup: {
                 from: "routes",
-                localField: "vehicle_number",
-                foreignField: "vehicle_number",
+                let: { vNo: "$vehicle_number" },
+                pipeline: [
+                    { $match: { $expr: { $eq: ["$vehicle_number", "$$vNo"] } } },
+                    { $limit: 1 }
+                ],
                 as: "route"
             }
         },
@@ -561,29 +581,33 @@ const getStudentDetails = asyncHandler(async (req, res) => {
         }
     ])
 
-    var finalResult = []
+    // Fetch all discounts in one query instead of one per student
+    const studentIds = result.map((s) => s.student_id)
+    const discounts = await SpecialDiscount.find({
+        student_id: { $in: studentIds },
+        session: session
+    }).lean()
 
-    for (let i = 0; i < (result.length); i++) {
-        const element = result[i];
+    const discountMap = new Map()
+    for (const d of discounts) {
+        if (!discountMap.has(d.student_id)) {
+            discountMap.set(d.student_id, d)
+        }
+    }
 
-        var discountDetails = await SpecialDiscount.findOne({ student_id: element.student_id, session: session })
+    const finalResult = result.map((element) => {
+        const discountDetails = discountMap.get(element.student_id)
+        let discount_amount = 0
 
-        var discount_amount = 0
-
-        if (discountDetails === null) {
-            discount_amount = 0;
-        } else if (discountDetails.discount_status) {
-            if (discountDetails.description === 'Composite_Transportation') {
-                var amount = discountDetails.discount_amount
-                discount_amount = Number(amount.split('/')[1])
-            } else if (discountDetails.description === 'Transportation Fees') {
+        if (discountDetails && discountDetails.discount_status) {
+            if (discountDetails.description === "Composite_Transportation") {
+                discount_amount = Number(String(discountDetails.discount_amount).split("/")[1])
+            } else if (discountDetails.description === "Transportation Fees") {
                 discount_amount = Number(discountDetails.discount_amount)
             }
-        } else if (!discountDetails.discount_status) {
-            discount_amount = 0
         }
 
-        finalResult.push({
+        return {
             student_id: element.student_id,
             name: element.name,
             grade: element.grade,
@@ -594,10 +618,9 @@ const getStudentDetails = asyncHandler(async (req, res) => {
             start_location: element.start_location,
             end_location: element.end_location,
             vehicle_number: element.vehicle_number,
-            discount_amount: `${500 - Number(discount_amount)}`,
-        })
-
-    }
+            discount_amount: `${baseTransportFee - Number(discount_amount)}`
+        }
+    })
 
     return res
         .status(200)
