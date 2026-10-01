@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addTransportRoute, getTransportRoutes, updateTransportRoute, addStudentToBus, removeStudentFromBus, changeVehicleStatus, isStudentPresent, getStudentDetails, updateFromPrevious } from "../controllers/transport.controllers.js";
+import { addTransportRoute, getTransportRoutes, updateTransportRoute, addStudentToBus, removeStudentFromBus, changeVehicleStatus, isStudentPresent, getStudentDetails, updateFromPrevious, classWiseList } from "../controllers/transport.controllers.js";
 import { adminVerifyJWT, employeeVerifyJWT } from "../middlewares/auth.middlewares.js";
 
 const router = Router()
@@ -13,6 +13,7 @@ router.route('/admin/removeStudentFromBus').delete(adminVerifyJWT, removeStudent
 router.route('/admin/changeVehicleStatus').put(adminVerifyJWT, changeVehicleStatus)
 router.route('/admin/isStudentPresent').get(adminVerifyJWT, isStudentPresent)
 router.route('/admin/getStudentDetails').get(adminVerifyJWT, getStudentDetails)
+router.route('/admin/ClassWise').get(adminVerifyJWT, classWiseList)
 router.route('/admin/updateFromPrevious').post(adminVerifyJWT, updateFromPrevious)
 
 //Employee Routes
@@ -24,6 +25,7 @@ router.route('/employee/removeStudentFromBus').delete(employeeVerifyJWT, removeS
 router.route('/employee/changeVehicleStatus').put(employeeVerifyJWT, changeVehicleStatus)
 router.route('/employee/isStudentPresent').get(employeeVerifyJWT, isStudentPresent)
 router.route('/employee/getStudentDetails').get(employeeVerifyJWT, getStudentDetails)
+router.route('/admin/ClassWise').get(employeeVerifyJWT, classWiseList)
 router.route('/employee/updateFromPrevious').post(employeeVerifyJWT, updateFromPrevious)
 
 

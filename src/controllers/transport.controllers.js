@@ -707,6 +707,141 @@ const updateFromPrevious = asyncHandler(async (req, res) => {
         )
 })
 
+const classWiseList = asyncHandler(async (req, res) => {
+    const { grade, section } = req.query
+
+    const session = await getCurrentSchoolSession()
+
+    if (!grade || !section) {
+        throw new ApiError(400, 'Required Input')
+    }
+
+    const studentList = await Student.aggregate([
+        // 1. Students of the class, current session, Active or Inactive
+        {
+            $match: {
+                grade,
+                section,
+                session,
+                status: { $in: ["Active", "Inactive"] }
+            }
+        },
+
+        // 2. Vehicle containing this student
+        {
+            $lookup: {
+                from: "vehicles",
+                let: {
+                    sid: "$student_id",
+                    oid: { $toString: "$_id" }
+                },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $and: [
+                                    {
+                                        $or: [
+                                            { $in: ["$$sid", { $ifNull: ["$student_id", []] }] },
+                                            { $in: ["$$oid", { $ifNull: ["$student_id", []] }] }
+                                        ]
+                                    },
+                                    { $eq: ["$session", session] }
+                                ]
+                            }
+                        }
+                    },
+                    { $limit: 1 }
+                ],
+                as: "vehicleDoc"
+            }
+        },
+        { $unwind: { path: "$vehicleDoc", preserveNullAndEmptyArrays: true } },
+
+        // 3. Route using the vehicle_number
+        {
+            $lookup: {
+                from: "routes",
+                let: { vnum: "$vehicleDoc.vehicle_number" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $and: [
+                                    { $eq: ["$vehicle_number", "$$vnum"] },
+                                    { $eq: ["$session", session] }
+                                ]
+                            }
+                        }
+                    },
+                    { $limit: 1 }
+                ],
+                as: "routeDoc"
+            }
+        },
+        { $unwind: { path: "$routeDoc", preserveNullAndEmptyArrays: true } },
+
+        // 4. Parent via custom parent_id
+        {
+            $lookup: {
+                from: "parents",
+                localField: "parent_id",
+                foreignField: "parent_id",
+                as: "parentDoc"
+            }
+        },
+
+        // 5. Flatten everything into the student object
+        {
+            $addFields: {
+                // vehicle
+                vehicle: { $ifNull: ["$vehicleDoc.vehicle_number", "Self Mode"] },
+                vehicle_type: { $ifNull: ["$vehicleDoc.vehicle_type", "NA"] },
+                capacity: { $ifNull: ["$vehicleDoc.capacity", "NA"] },
+                driver_name: { $ifNull: ["$vehicleDoc.driver_name", "NA"] },
+                driver_mobile: { $ifNull: ["$vehicleDoc.driver_mobile", "NA"] },
+
+                // route
+                route_name: { $ifNull: ["$routeDoc.route_name", "NA"] },
+                start_location: { $ifNull: ["$routeDoc.start_location", "NA"] },
+                end_location: { $ifNull: ["$routeDoc.end_location", "NA"] },
+                description: { $ifNull: ["$routeDoc.description", "NA"] },
+
+                // parent
+                father_name: { $arrayElemAt: ["$parentDoc.father_name", 0] },
+                mother_name: { $arrayElemAt: ["$parentDoc.mother_name", 0] },
+                father_contact: { $arrayElemAt: ["$parentDoc.father_contact", 0] },
+                mother_contact: { $arrayElemAt: ["$parentDoc.mother_contact", 0] }
+            }
+        },
+
+        // 6. Remove the temporary lookup objects
+        { $project: { vehicleDoc: 0, routeDoc: 0, parentDoc: 0 } },
+
+        // 7. Sort by roll number
+        {
+            $addFields: {
+                _rollSort: {
+                    $convert: {
+                        input: "$roll_number",
+                        to: "int",
+                        onError: 999999,
+                        onNull: 999999
+                    }
+                }
+            }
+        },
+        { $sort: { _rollSort: 1, name: 1 } },
+        { $project: { _rollSort: 0 } }
+    ])
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, studentList, 'Student Records')
+        )
+})
+
 export {
     addTransportRoute,
     getTransportRoutes,
@@ -716,5 +851,6 @@ export {
     changeVehicleStatus,
     isStudentPresent,
     getStudentDetails,
-    updateFromPrevious
+    updateFromPrevious,
+    classWiseList
 }
