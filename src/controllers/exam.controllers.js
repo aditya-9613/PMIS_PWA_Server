@@ -1125,6 +1125,26 @@ const saveTotalAttendance = asyncHandler(async (req, res) => {
         )
 })
 
+const getTotalAttendance = asyncHandler(async (req, res) => {
+    const { grade, section } = req.query
+
+    if (!grade || !section) {
+        throw new ApiError(400, 'Required fields')
+    }
+
+    const session = await getCurrentSchoolSession()
+
+    const findAttendanceDetails = await Attendance.find({ grade, section, session })
+
+    if (findAttendanceDetails.length === 0) {
+        throw new ApiError(404, 'No attendance Records')
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, findAttendanceDetails, 'Total Records'))
+})
+
 const updateAttendanceTime = asyncHandler(async (req, res) => {
     const { preAttendanceTime, newAttendanceTime } = req.body
 
@@ -1319,6 +1339,7 @@ export {
     dailyAttendanceUpdates,
     getAttendanceRecords,
     saveTotalAttendance,
+    getTotalAttendance,
     updateAttendanceTime,
     getAttendanceTime,
     getPreviousResult

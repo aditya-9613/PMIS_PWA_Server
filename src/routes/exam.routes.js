@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { adminVerifyJWT, employeeVerifyJWT, teacherVerifyJWT } from "../middlewares/auth.middlewares.js"
-import { defineExam, genrateAdmitCards, getExams, getSchedule, scheduleExam, upsertExamMarks, getExamMarks, saveScholasticMarks, getScholasticMarks, classTopper, getResultData, dailyAttendanceUpdates, getAttendanceRecords, saveTotalAttendance, updateAttendanceTime, getAttendanceTime, getPreviousResult } from "../controllers/exam.controllers.js";
+import { defineExam, genrateAdmitCards, getExams, getSchedule, scheduleExam, upsertExamMarks, getExamMarks, saveScholasticMarks, getScholasticMarks, classTopper, getResultData, dailyAttendanceUpdates, getAttendanceRecords, saveTotalAttendance, updateAttendanceTime, getAttendanceTime, getPreviousResult, getTotalAttendance } from "../controllers/exam.controllers.js";
 
 const router = Router()
 
@@ -19,6 +19,7 @@ router.route('/admin/getResultData').get(adminVerifyJWT, getResultData)
 router.route('/admin/dailyAttendance').post(adminVerifyJWT, dailyAttendanceUpdates)
 router.route('/admin/getAttendance').get(adminVerifyJWT, getAttendanceRecords)
 router.route('/admin/totalAttendance').post(adminVerifyJWT, saveTotalAttendance)
+router.route('/admin/getTotalAttendance').get(adminVerifyJWT, getTotalAttendance)
 router.route('/admin/updateAttendanceTime').put(adminVerifyJWT, updateAttendanceTime)
 router.route('/admin/getAttendanceTime').get(adminVerifyJWT, getAttendanceTime)
 router.route('/admin/getPreviousResult').get(adminVerifyJWT, getPreviousResult)
@@ -38,6 +39,7 @@ router.route('/employee/getResultData').get(employeeVerifyJWT, getResultData)
 router.route('/employee/dailyAttendance').post(employeeVerifyJWT, dailyAttendanceUpdates)
 router.route('/employee/getAttendance').get(employeeVerifyJWT, getAttendanceRecords)
 router.route('/employee/totalAttendance').post(employeeVerifyJWT, saveTotalAttendance)
+router.route('/employee/getTotalAttendance').get(employeeVerifyJWT, getTotalAttendance)
 router.route('/employee/getAttendanceTime').get(employeeVerifyJWT, getAttendanceTime)
 router.route('/employee/getPreviousResult').get(employeeVerifyJWT, getPreviousResult)
 
@@ -56,6 +58,7 @@ router.route('/teacher/getResultData').get(teacherVerifyJWT, getResultData)
 router.route('/teacher/dailyAttendance').post(teacherVerifyJWT, dailyAttendanceUpdates)
 router.route('/teacher/getAttendance').get(teacherVerifyJWT, getAttendanceRecords)
 router.route('/teacher/totalAttendance').post(teacherVerifyJWT, saveTotalAttendance)
+router.route('/teacher/getTotalAttendance').get(teacherVerifyJWT, getTotalAttendance)
 router.route('/teacher/getAttendanceTime').get(teacherVerifyJWT, getAttendanceTime)
 
 export default router; 
